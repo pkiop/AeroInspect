@@ -259,9 +259,9 @@ def test_pipeline_e2e_smoke(
 
 
 def test_catalog_registry_consistency() -> None:
-    """data/parts_catalog/*.md 가 7개이며, 레지스트리의 모든 P/N·부품명을 담는지 검증."""
+    """data/parts_catalog/*.md 가 9개이며, 레지스트리의 모든 P/N·부품명을 담는지 검증."""
     md_files = sorted(config.CATALOG_DIR.glob("*.md"))
-    assert len(md_files) == 7, f"카탈로그 파일은 7개여야 함 (현재 {len(md_files)}개)"
+    assert len(md_files) == 9, f"카탈로그 파일은 9개여야 함 (현재 {len(md_files)}개)"
 
     full_text = "\n".join(p.read_text(encoding="utf-8") for p in md_files)
     for part in config.PARTS_REGISTRY:

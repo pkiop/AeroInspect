@@ -11,7 +11,7 @@
 ## 1. 문서 체계 (Document Structure)
 
 본 가상 부품 카탈로그(mini-IPC)는 AI-DEMO-100 축소 모형 항공기의 외부 형상
-구성품을 대상으로 하며, 다음 7개 문서로 구성된다.
+구성품을 대상으로 하며, 다음 9개 문서로 구성된다.
 
 | 문서 번호 | 파일 | 대상 부위 |
 |---|---|---|
@@ -22,6 +22,8 @@
 | AI-IPC-DEMO-04 | 04_fuselage_canopy.md | 동체 / 캐노피 |
 | AI-IPC-DEMO-05 | 05_sensors_probes.md | 센서 / 프로브류 |
 | AI-IPC-DEMO-06 | 06_tail_damage.md | 미부 손상 평가 및 조치 |
+| AI-IPC-DEMO-07 | 07_service_bulletins.md | 정비회보(SB) 요약집 |
+| AI-IPC-DEMO-08 | 08_walkaround_inspection.md | 외부 육안점검 절차 |
 
 문서 00~05의 각 부품 항목은 다음 순서로 기술된다: 식별 정보(굵은 라벨 목록) →
 장착 절차 → 누락 시 영향. 부품 식별 정보의 문자열(P/N, 한국어 명칭, 영어 명칭)은
