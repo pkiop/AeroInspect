@@ -295,18 +295,36 @@ def _add_validation_flags(doc: DocumentObject, item: InspectionItem) -> None:
         )
 
 
+def _pick_image(images: list[bytes], index: int) -> bytes | None:
+    """discrepancy가 가리키는 이미지 인덱스로 목록에서 이미지를 고른다.
+
+    범위를 벗어나면 첫 번째 이미지로 방어적 폴백한다.
+    """
+    if not images:
+        return None
+    return images[index] if 0 <= index < len(images) else images[0]
+
+
 def _add_item_detail(
     doc: DocumentObject,
     index: int,
     item: InspectionItem,
-    baseline_image: bytes | None,
-    inspection_image: bytes | None,
+    baseline_images: list[bytes],
+    inspection_images: list[bytes],
 ) -> None:
-    """'3.x [ID] 부품명' 항목별 상세 블록."""
+    """'3.x [ID] 부품명' 항목별 상세 블록.
+
+    bbox 오버레이는 discrepancy의 이미지 인덱스가 가리키는 이미지에 적용한다.
+    """
     d = item.discrepancy
     record = item.effective_record
     doc.add_heading(f"3.{index} [{d.discrepancy_id}] {d.component_name_ko}", level=2)
-    _add_item_images(doc, d, baseline_image, inspection_image)
+    _add_item_images(
+        doc,
+        d,
+        _pick_image(baseline_images, d.baseline_image_index),
+        _pick_image(inspection_images, d.inspection_image_index),
+    )
     doc.add_paragraph(f"판독 근거: {d.evidence} (이미지상 위치: {d.image_position_desc})")
     _add_part_info(doc, record)
     _add_reference_docs(doc, record)
@@ -372,8 +390,6 @@ class ReportAgent:
         """
         narrative = self._generate_narrative(items, inspector_name)
         now = dt.datetime.now()
-        baseline_image = baseline_images[0] if baseline_images else None
-        inspection_image = inspection_images[0] if inspection_images else None
 
         doc = Document()
         _apply_korean_base_font(doc)
@@ -387,7 +403,7 @@ class ReportAgent:
         if items:
             doc.add_heading("3. 항목별 상세", level=1)
             for index, item in enumerate(items, start=1):
-                _add_item_detail(doc, index, item, baseline_image, inspection_image)
+                _add_item_detail(doc, index, item, baseline_images, inspection_images)
 
         doc.add_heading("4. 종합 의견", level=1)
         doc.add_paragraph(narrative.overall_opinion)

@@ -161,17 +161,39 @@ def _render_vision(
 ) -> None:
     """Vision 카드 — bbox 오버레이 이미지 2장 + 판독 결과 표."""
     if baseline_images and inspection_images:
-        base_view = baseline_images[0]
-        insp_view = inspection_images[0]
-        # 탐지된 차이를 첫 번째 기준/점검 이미지에 누적 오버레이한다.
+        # 각 discrepancy의 이미지 인덱스가 가리키는 이미지에 누적 오버레이한다.
+        def _safe_index(idx: int, images: list[bytes]) -> int:
+            return idx if 0 <= idx < len(images) else 0
+
+        base_views: dict[int, bytes] = {}
+        insp_views: dict[int, bytes] = {}
         for disc in discrepancies:
-            base_view = imaging.annotate_baseline(base_view, disc.bbox_baseline)
-            insp_view = imaging.annotate_inspection(insp_view, disc.bbox_inspection)
+            bi = _safe_index(disc.baseline_image_index, baseline_images)
+            ii = _safe_index(disc.inspection_image_index, inspection_images)
+            base_views[bi] = imaging.annotate_baseline(
+                base_views.get(bi, baseline_images[bi]), disc.bbox_baseline
+            )
+            insp_views[ii] = imaging.annotate_inspection(
+                insp_views.get(ii, inspection_images[ii]), disc.bbox_inspection
+            )
+        if not discrepancies:
+            base_views[0] = baseline_images[0]
+            insp_views[0] = inspection_images[0]
         col_base, col_insp = st.columns(2)
         with col_base:
-            st.image(base_view, caption="기준 이미지 (정상 장착 상태)", use_container_width=True)
+            for i in sorted(base_views):
+                st.image(
+                    base_views[i],
+                    caption=f"기준 이미지 #{i + 1} (정상 장착 상태)",
+                    use_container_width=True,
+                )
         with col_insp:
-            st.image(insp_view, caption="점검 이미지 (이상 위치)", use_container_width=True)
+            for i in sorted(insp_views):
+                st.image(
+                    insp_views[i],
+                    caption=f"점검 이미지 #{i + 1} (이상 위치)",
+                    use_container_width=True,
+                )
 
     if not discrepancies:
         st.success("구성 차이 미발견")

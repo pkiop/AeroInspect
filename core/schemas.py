@@ -52,6 +52,16 @@ class Discrepancy(BaseModel):
         default=None,
         description="기준 이미지에서 해당 부품의 정상 장착 위치 [x0,y0,x1,y1]",
     )
+    inspection_image_index: int = Field(
+        default=0,
+        ge=0,
+        description="bbox_inspection이 점검 이미지 목록 중 몇 번째 이미지 기준인지 (0부터)",
+    )
+    baseline_image_index: int = Field(
+        default=0,
+        ge=0,
+        description="bbox_baseline이 기준 이미지 목록 중 몇 번째 이미지 기준인지 (0부터)",
+    )
     evidence: str = Field(description="판단 근거 서술")
     severity: Severity
     confidence: float = Field(ge=0.0, le=1.0)
