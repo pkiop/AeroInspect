@@ -19,6 +19,7 @@ import logging
 import time
 from typing import Any, Sequence, TypeVar
 
+import httpx
 from google.genai import errors as genai_errors
 from google.genai import types
 from pydantic import TypeAdapter
@@ -95,10 +96,18 @@ def _parse_structured(response: Any, response_schema: Any) -> Any:
 
 
 def _is_retryable_transport_error(exc: Exception) -> bool:
-    """일시적 전송/서버 오류인지 판정 (429/5xx/타임아웃)."""
+    """일시적 전송/서버 오류인지 판정 (429/5xx/타임아웃/커넥션 오류).
+
+    google-genai(httpx 기반)는 타임아웃·연결 실패 시 httpx 예외를 그대로
+    전파하는데, 이들은 builtin ``TimeoutError``/``ConnectionError`` 의
+    서브클래스가 **아니므로** ``httpx.TransportError`` 를 별도로 잡아야 한다.
+    """
     if isinstance(exc, genai_errors.APIError):
         code = getattr(exc, "code", None)
         return code in (429, 500, 502, 503, 504)
+    if isinstance(exc, httpx.TransportError):
+        # TimeoutException/ConnectError/ReadError 등 일시적 전송 계열 전부
+        return True
     return isinstance(exc, (TimeoutError, ConnectionError))
 
 
