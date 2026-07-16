@@ -1,7 +1,7 @@
 """AeroInspect 파이프라인 오케스트레이터 (순수 Python, 프레임워크 미사용).
 
 흐름: Vision(전체 이미지 비교 1회) → 항목별 Grounding(asyncio 병렬)
-→ Validator(항목별 규칙 검증) → Report(보고서 생성).
+→ Validator(항목별 규칙 검증) → Report(서술 생성).
 
 - 단계별 :class:`~core.schemas.PipelineEvent` 를 progress_callback으로 발행한다.
 - 각 단계의 원본 산출물을 ``config.RUNS_DIR/<YYYYMMDD_HHMMSS>/`` 에 JSON으로
@@ -218,16 +218,11 @@ class Orchestrator:
             for d, r, v in zip(discrepancies, records, validations)
         ]
 
-        # --- 4) Report: 보고서 생성 (0건이면 '이상 없음' 보고서) --------------
+        # --- 4) Report: 서술 생성 (0건이면 '이상 없음' 서술) -------------------
         self._emit(progress_callback, "report", "started")
         t0 = time.perf_counter()
         try:
-            report_path, narrative = self._reporter.build_report(
-                items,
-                baseline_images,
-                inspection_images,
-                self.inspector_name,
-            )
+            narrative = self._reporter.build_narrative(items, self.inspector_name)
         except Exception as exc:  # noqa: BLE001
             self._handle_failure("report", exc, run_dir, progress_callback)
             raise
@@ -237,28 +232,24 @@ class Orchestrator:
             "result.json",
             {
                 "discrepancy_count": len(items),
-                "report_path": str(report_path),
                 "models": self.models,
                 "confidence_threshold": self.confidence_threshold,
                 "inspector_name": self.inspector_name,
                 "run_dir": str(run_dir),
             },
         )
-        logger.info(
-            "report 완료 — %s (%.2fs)", report_path, time.perf_counter() - t0
-        )
+        logger.info("report 완료 — (%.2fs)", time.perf_counter() - t0)
         self._emit(
             progress_callback,
             "report",
             "completed",
-            payload={"report_path": str(report_path), "narrative": narrative},
+            payload={"narrative": narrative},
         )
 
         logger.info("파이프라인 종료 — 총 %d건, run_dir=%s", len(items), run_dir)
         return PipelineResult(
             items=items,
             narrative=narrative,
-            report_path=str(report_path),
             run_dir=str(run_dir),
         )
 

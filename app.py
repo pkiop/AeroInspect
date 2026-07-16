@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 import traceback
-from pathlib import Path
 from typing import Any, Callable
 
 import streamlit as st
@@ -36,7 +35,7 @@ STAGE_LABELS: dict[str, str] = {
     "vision": "1️⃣ Vision — 형상 비교 판독",
     "grounding": "2️⃣ Grounding — 부품 카탈로그 검색",
     "validation": "3️⃣ Validator — 규칙 검증",
-    "report": "4️⃣ Report — 보고서 생성",
+    "report": "4️⃣ Report — 점검 서술 생성",
 }
 
 #: 단계 순서 (실패 시 후속 카드 처리용)
@@ -74,8 +73,10 @@ RED_FLAGS: frozenset[str] = frozenset({"ESCALATED", "SIDE_MISMATCH", "UNKNOWN_CO
 #: 주황 계열(st.warning)로 표시할 검증 플래그
 ORANGE_FLAGS: frozenset[str] = frozenset({"REVIEW_REQUIRED", "UNGROUNDED"})
 
-#: .docx MIME 타입
-DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+#: 점검 결과 말미 고정 면책 문구
+DISCLAIMER_TEXT: str = (
+    "본 점검 결과는 가상 데이터 기반 데모 산출물로, 실제 감항성 판단에 사용할 수 없습니다."
+)
 
 
 def _default_model_index(model_name: str, options: list[str]) -> int:
@@ -306,34 +307,17 @@ def _render_validation(entries: list[dict[str, Any]]) -> None:
 
 
 def _render_report(payload: dict[str, Any]) -> None:
-    """Report 카드 — 개요/종합의견 미리보기 + .docx 다운로드 버튼."""
+    """Report 카드 — 점검 개요/종합 의견 서술."""
     narrative = payload.get("narrative")
-    report_path = payload.get("report_path")
-
-    if narrative is not None:
-        st.markdown("**점검 개요**")
-        st.write(narrative.overview)
-        st.markdown("**종합 의견**")
-        st.write(narrative.overall_opinion)
-
-    if not report_path:
-        st.warning("보고서 경로가 없습니다.")
+    if narrative is None:
+        st.warning("생성된 서술이 없습니다.")
         return
-    path = Path(report_path)
-    data: bytes | None = st.session_state.get("report_bytes")
-    if data is None and path.exists():
-        with open(path, "rb") as f:
-            data = f.read()
-    if data:
-        st.download_button(
-            "📄 점검 보고서(.docx) 다운로드",
-            data=data,
-            file_name=path.name,
-            mime=DOCX_MIME,
-            key="report_download",
-        )
-    else:
-        st.warning(f"보고서 파일을 찾을 수 없습니다: {path}")
+
+    st.markdown("**점검 개요**")
+    st.write(narrative.overview)
+    st.markdown("**종합 의견**")
+    st.write(narrative.overall_opinion)
+    st.caption(DISCLAIMER_TEXT)
 
 
 # ---------------------------------------------------------------------------
@@ -422,7 +406,7 @@ def _render_result(status_boxes: dict[str, Any], result: PipelineResult) -> None
         _render_validation(validation_entries)
 
     with status_boxes["report"]:
-        _render_report({"report_path": result.report_path, "narrative": result.narrative})
+        _render_report({"narrative": result.narrative})
 
 
 def _show_error(error: dict[str, str]) -> None:
@@ -503,7 +487,6 @@ def main() -> None:
         # 새 실행 — 이전 결과/오류 초기화 후 파이프라인 실행
         st.session_state["last_result"] = None
         st.session_state["last_error"] = None
-        st.session_state["report_bytes"] = None
         st.session_state["vision_snapshot"] = None
         st.session_state["last_baseline"] = baseline_images
         st.session_state["last_inspection"] = inspection_images
@@ -540,11 +523,9 @@ def main() -> None:
             st.session_state["vision_snapshot"] = progress.get("payloads", {}).get(
                 "vision"
             )
-            if result.report_path and Path(result.report_path).exists():
-                st.session_state["report_bytes"] = Path(result.report_path).read_bytes()
             st.toast("형상 점검 완료", icon="✅")
     elif last_result is not None:
-        # 이전 실행 결과를 카드에 재렌더 (다운로드 클릭 등 rerun 대응)
+        # 이전 실행 결과를 카드에 재렌더 (위젯 상호작용 rerun 대응)
         status_boxes = _make_status_boxes(initial_state="complete")
         _render_result(status_boxes, last_result)
     elif last_error is not None:

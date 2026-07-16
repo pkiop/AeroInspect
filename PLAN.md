@@ -1,6 +1,6 @@
 # AeroInspect 구현 계획
 
-항공기 축소 모형의 기준(정상) 사진과 점검 사진을 비교해 **부품 누락/이상을 탐지**하고, 가상 부품 카탈로그(mini-IPC)에서 근거를 찾아, 결정론적 규칙으로 검증한 뒤, **한국어 형상 점검 보고서(.docx)** 를 자동 생성하는 멀티에이전트 데모.
+항공기 축소 모형의 기준(정상) 사진과 점검 사진을 비교해 **부품 누락/이상을 탐지**하고, 가상 부품 카탈로그(mini-IPC)에서 근거를 찾아, 결정론적 규칙으로 검증한 뒤, **한국어 점검 서술(점검 개요·종합 의견)** 을 자동 생성하는 멀티에이전트 데모.
 
 - LLM: **Google Gemini 전용** (`google-genai` SDK). 에이전트 프레임워크 금지 — 순수 Python 오케스트레이션.
 - 구조화 출력: `response_mime_type="application/json"` + `response_schema=<Pydantic>` 강제.
@@ -21,7 +21,7 @@
    - `VisionAgent`: 멀티모달 1회 호출로 기준/점검 비교, 체크리스트 기법, 좌/우 항공기 기준 통일, 차이 없으면 빈 배열
    - `GroundingAgent`: 1차 Gemini File Search(인용 메타데이터 필수) → 2차 롱컨텍스트 폴백(`via_fallback` 표시), 환각 방지 규칙
    - `Validator`: **LLM 미사용** 순수 규칙 엔진 — REVIEW_REQUIRED / ESCALATED / UNKNOWN_COMPONENT / SIDE_MISMATCH / UNGROUNDED
-   - `ReportAgent`: Gemini 한국어 서술 생성 + `python-docx` 조립(기준·점검 사진 나란히, Pillow bbox 오버레이, 면책 문구)
+   - `ReportAgent`: Gemini 구조화 출력으로 한국어 점검 개요·종합 의견 서술 생성(항목 요약 텍스트만 컨텍스트로 사용)
 
 4. **core/orchestrator.py**
    - `run(baseline_images, inspection_images, progress_callback)` — 단계별 이벤트 발행
@@ -30,7 +30,7 @@
 
 5. **app.py (Streamlit 단일 페이지)**
    - 기준 이미지 사전 등록(session_state), `st.camera_input` + 다중 업로더
-   - 에이전트별 4개 카드 실시간 채움(bbox 오버레이, 인용, 플래그 색상, .docx 다운로드)
+   - 에이전트별 4개 카드 실시간 채움(bbox 오버레이, 인용, 플래그 색상, 점검 서술 + 면책 문구)
    - 사이드바: 모델 선택, confidence 슬라이더, 점검자 이름
 
 6. **scripts/setup_file_search.py + tests/test_e2e.py + README.md**
