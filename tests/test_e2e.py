@@ -267,3 +267,87 @@ def test_catalog_registry_consistency() -> None:
     for part in config.PARTS_REGISTRY:
         assert part.part_number in full_text, f"카탈로그에 P/N 누락: {part.part_number}"
         assert part.name_ko in full_text, f"카탈로그에 부품명 누락: {part.name_ko}"
+
+
+# ---------------------------------------------------------------------------
+# 3) Validator 규칙 단위 테스트
+# ---------------------------------------------------------------------------
+
+
+def _discrepancy(**overrides: Any) -> Discrepancy:
+    """Validator 테스트용 Discrepancy 빌더 (기본: 정상 통과 케이스)."""
+    base: dict[str, Any] = {
+        "discrepancy_id": "D-001",
+        "discrepancy_type": "missing_part",
+        "component_name_ko": "우측 훈련용 미사일",
+        "component_name_en": "Right Training Missile",
+        "aircraft_side": "right",
+        "image_position_desc": "이미지 프레임 좌측 하단",
+        "bbox_inspection": [0.1, 0.6, 0.4, 0.9],
+        "bbox_baseline": [0.1, 0.6, 0.4, 0.9],
+        "evidence": "기준 이미지 대비 우측 파일런에서 훈련용 미사일이 보이지 않음",
+        "severity": "medium",
+        "confidence": 0.9,
+    }
+    base.update(overrides)
+    return Discrepancy(**base)
+
+
+def _record(**overrides: Any) -> PartRecord:
+    """Validator 테스트용 PartRecord 빌더 (기본: 비행 필수 아님 → ESCALATED 배제)."""
+    base: dict[str, Any] = {
+        "found": True,
+        "part_number": "ACFT-MSL-R-001",
+        "name_ko": "우측 훈련용 미사일",
+        "name_en": "Right Training Missile",
+        "catalog_side": "right",
+        "flight_critical": False,
+        "installation_steps": ["파일런 러그 정렬", "고정 스트랩 체결", "유격 점검"],
+        "disposition_if_missing": "install_before_flight",
+        "reference_docs": [
+            RefDoc(doc="02_wing.md", section="## [ACFT-MSL-R-001] 우측 훈련용 미사일")
+        ],
+        "via_fallback": False,
+    }
+    base.update(overrides)
+    return PartRecord(**base)
+
+
+def test_validator_rules() -> None:
+    """Validator 결정론 규칙 5종 — LLM 없이 단독 동작해야 한다."""
+    from agents.validator import FLAG_DESCRIPTIONS, Validator
+
+    validator = Validator(confidence_threshold=0.6)
+
+    # 1) REVIEW_REQUIRED — confidence가 임계값 미만
+    result = validator.validate(_discrepancy(confidence=0.3), _record())
+    assert "REVIEW_REQUIRED" in result.flags
+
+    # 2) UNKNOWN_COMPONENT — 카탈로그에서 부품을 찾지 못함
+    result = validator.validate(_discrepancy(), _record(found=False, part_number=None))
+    assert "UNKNOWN_COMPONENT" in result.flags
+
+    # 3) SIDE_MISMATCH — 탐지 좌/우와 카탈로그 좌/우 불일치
+    result = validator.validate(
+        _discrepancy(aircraft_side="left"), _record(catalog_side="right")
+    )
+    assert "SIDE_MISMATCH" in result.flags
+
+    # 4) UNGROUNDED — 카탈로그 인용(reference_docs)이 비어 있음
+    result = validator.validate(_discrepancy(), _record(reference_docs=[]))
+    assert "UNGROUNDED" in result.flags
+
+    # 5) 플래그 없음 — 정상 통과 케이스
+    result = validator.validate(_discrepancy(), _record())
+    assert result.passed is True
+    assert result.flags == []
+
+    # 모든 플래그는 UI/보고서용 한국어 설명을 가져야 한다
+    for flag in (
+        "REVIEW_REQUIRED",
+        "UNKNOWN_COMPONENT",
+        "SIDE_MISMATCH",
+        "UNGROUNDED",
+        "ESCALATED",
+    ):
+        assert flag in FLAG_DESCRIPTIONS, f"FLAG_DESCRIPTIONS에 {flag} 설명 누락"
