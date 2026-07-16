@@ -343,6 +343,7 @@ def _make_progress_callback(
         if event.status == "started":
             box.update(state="running", expanded=True)
         elif event.status == "completed":
+            progress.setdefault("payloads", {})[event.stage] = event.payload
             with box:
                 renderers[event.stage](event.payload)
             box.update(state="complete", expanded=True)
@@ -360,7 +361,14 @@ def _render_result(status_boxes: dict[str, Any], result: PipelineResult) -> None
     baseline_images: list[bytes] = st.session_state.get("last_baseline", [])
     inspection_images: list[bytes] = st.session_state.get("last_inspection", [])
 
-    discrepancies = [item.discrepancy for item in result.items]
+    # Vision 카드는 판독 시점 스냅샷(있으면)을 사용 — Validator의 severity
+    # 상향이 실행 중 표시와 rerun 표시를 어긋나게 하지 않도록 한다.
+    vision_snapshot: list[Discrepancy] | None = st.session_state.get("vision_snapshot")
+    discrepancies = (
+        vision_snapshot
+        if vision_snapshot is not None
+        else [item.discrepancy for item in result.items]
+    )
     with status_boxes["vision"]:
         _render_vision(discrepancies, baseline_images, inspection_images)
 
@@ -449,6 +457,7 @@ def main() -> None:
         st.session_state["last_result"] = None
         st.session_state["last_error"] = None
         st.session_state["report_bytes"] = None
+        st.session_state["vision_snapshot"] = None
         st.session_state["last_baseline"] = baseline_images
         st.session_state["last_inspection"] = inspection_images
 
@@ -481,6 +490,9 @@ def main() -> None:
             _show_error(error)
         else:
             st.session_state["last_result"] = result
+            st.session_state["vision_snapshot"] = progress.get("payloads", {}).get(
+                "vision"
+            )
             if result.report_path and Path(result.report_path).exists():
                 st.session_state["report_bytes"] = Path(result.report_path).read_bytes()
             st.toast("형상 점검 완료", icon="✅")

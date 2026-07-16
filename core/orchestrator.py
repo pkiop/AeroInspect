@@ -138,7 +138,14 @@ class Orchestrator:
             len(discrepancies),
             time.perf_counter() - t0,
         )
-        self._emit(progress_callback, "vision", "completed", payload=discrepancies)
+        # payload는 deep copy 스냅샷 — 이후 Validator의 in-place severity 상향이
+        # 이미 표시된 Vision 카드 내용과 어긋나지 않게 한다.
+        self._emit(
+            progress_callback,
+            "vision",
+            "completed",
+            payload=[d.model_copy(deep=True) for d in discrepancies],
+        )
 
         # --- 2) Grounding: 항목별 카탈로그 조회 (asyncio 병렬) ----------------
         self._emit(progress_callback, "grounding", "started")
