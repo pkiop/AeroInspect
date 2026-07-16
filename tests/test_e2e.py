@@ -351,3 +351,39 @@ def test_validator_rules() -> None:
         "ESCALATED",
     ):
         assert flag in FLAG_DESCRIPTIONS, f"FLAG_DESCRIPTIONS에 {flag} 설명 누락"
+
+
+# ---------------------------------------------------------------------------
+# 4) 동일 프로세스 반복 실행 회귀 테스트
+# ---------------------------------------------------------------------------
+
+
+def test_pipeline_repeated_runs(
+    mock_llm: dict[str, int], isolated_output: tuple[Path, Path]
+) -> None:
+    """같은 프로세스에서 파이프라인을 연속 실행해도 실패하지 않아야 한다.
+
+    회귀 방지: 실행마다 asyncio.run으로 이벤트 루프를 만들고 닫으면
+    genai 비동기 클라이언트의 커넥션 풀이 닫힌 루프에 남아 두 번째
+    실행부터 'Event loop is closed'가 발생했다 (Streamlit 재클릭 시나리오).
+    또한 같은 분(minute) 내 재실행 시 보고서 파일명이 충돌하지 않아야 한다.
+    """
+    from core.orchestrator import Orchestrator
+
+    orchestrator = Orchestrator(
+        models={"vision": "mock", "grounding": "mock", "report": "mock"},
+        store_name=None,
+        inspector_name="테스트",
+    )
+    baseline_images = [_solid_jpeg((88, 108, 138))]
+    inspection_images = [_solid_jpeg((100, 120, 150))]
+
+    report_paths = set()
+    for _ in range(2):
+        result = orchestrator.run(baseline_images, inspection_images)
+        assert len(result.items) == 1
+        assert result.report_path is not None
+        report_paths.add(result.report_path)
+
+    # 보고서 경로가 실행마다 달라야 한다 (덮어쓰기 금지)
+    assert len(report_paths) == 2
