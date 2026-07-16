@@ -136,7 +136,7 @@ class ValidationResult(BaseModel):
 
 
 class ReportNarrative(BaseModel):
-    """보고서용 한국어 서술 — Gemini 구조화 출력으로 생성."""
+    """점검 결과 한국어 서술 — Gemini 구조화 출력으로 생성."""
 
     overview: str = Field(description="점검 개요 서술 (2~4문장)")
     overall_opinion: str = Field(description="종합 의견 서술 (3~6문장)")
@@ -176,5 +176,4 @@ class PipelineResult(BaseModel):
 
     items: list[InspectionItem] = Field(default_factory=list)
     narrative: Optional[ReportNarrative] = None
-    report_path: Optional[str] = None
     run_dir: Optional[str] = None
