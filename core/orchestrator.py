@@ -16,6 +16,7 @@ import asyncio
 import datetime as _dt
 import json
 import logging
+import threading
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -39,6 +40,33 @@ logger = logging.getLogger("aeroinspect.orchestrator")
 
 #: progress_callback 타입 별칭
 ProgressCallback = Callable[[PipelineEvent], None]
+
+# ---------------------------------------------------------------------------
+# 프로세스 전역 장수 이벤트 루프
+# ---------------------------------------------------------------------------
+# genai 클라이언트(client.aio)의 httpx 커넥션 풀은 최초 사용된 이벤트 루프에
+# 바인딩된다. 실행마다 asyncio.run()으로 루프를 만들고 닫으면, 두 번째
+# 파이프라인 실행부터 닫힌 루프의 keep-alive 연결을 재사용하다
+# "Event loop is closed" 오류가 발생한다(Streamlit 재실행 시나리오).
+# 이를 방지하기 위해 모든 비동기 grounding 작업을 백그라운드 스레드의
+# 단일 장수 루프에서 실행한다.
+
+_loop_lock = threading.Lock()
+_pipeline_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _get_pipeline_loop() -> asyncio.AbstractEventLoop:
+    """백그라운드 스레드에서 도는 프로세스 전역 이벤트 루프를 반환한다."""
+    global _pipeline_loop
+    with _loop_lock:
+        if _pipeline_loop is None or _pipeline_loop.is_closed():
+            loop = asyncio.new_event_loop()
+            thread = threading.Thread(
+                target=loop.run_forever, name="aeroinspect-async-loop", daemon=True
+            )
+            thread.start()
+            _pipeline_loop = loop
+        return _pipeline_loop
 
 
 class Orchestrator:
@@ -232,7 +260,11 @@ class Orchestrator:
     # ------------------------------------------------------------------
 
     def _lookup_all(self, discrepancies: list[Discrepancy]) -> list[PartRecord]:
-        """GroundingAgent.lookup(async)을 asyncio.gather로 병렬 실행한다."""
+        """GroundingAgent.lookup(async)을 asyncio.gather로 병렬 실행한다.
+
+        장수 이벤트 루프(모듈 상단 참조)에 코루틴을 제출해, 반복 실행 시에도
+        genai 비동기 클라이언트의 커넥션 풀이 유효한 루프에 머물게 한다.
+        """
 
         async def _gather() -> list[PartRecord]:
             results = await asyncio.gather(
@@ -240,7 +272,8 @@ class Orchestrator:
             )
             return list(results)
 
-        return asyncio.run(_gather())
+        future = asyncio.run_coroutine_threadsafe(_gather(), _get_pipeline_loop())
+        return future.result()
 
     @staticmethod
     def _ensure_ids(discrepancies: list[Discrepancy]) -> list[Discrepancy]:
