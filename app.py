@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import traceback
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Callable
 
 import streamlit as st
@@ -72,7 +71,10 @@ RED_FLAGS: frozenset[str] = frozenset(
 #: warn(amber) 계열 플래그
 AMBER_FLAGS: frozenset[str] = frozenset({"REVIEW_REQUIRED", "UNGROUNDED"})
 
-DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+#: 점검 결과 말미 고정 면책 문구
+DISCLAIMER_TEXT: str = (
+    "본 점검 결과는 가상 데이터 기반 데모 산출물로, 실제 감항성 판단에 사용할 수 없습니다."
+)
 
 
 def _default_model_index(model_name: str, options: list[str]) -> int:
@@ -437,27 +439,10 @@ def _render_report_tab(result: PipelineResult, inspector: str) -> None:
             ],
             summary=summary,
             table_rows=table_rows,
+            disclaimer=DISCLAIMER_TEXT,
         ),
         unsafe_allow_html=True,
     )
-
-    if not result.report_path:
-        st.warning("보고서 경로가 없습니다.")
-        return
-    path = Path(result.report_path)
-    data: bytes | None = st.session_state.get("report_bytes")
-    if data is None and path.exists():
-        data = path.read_bytes()
-    if data:
-        st.download_button(
-            "감항 보고서(.docx) 다운로드",
-            data=data,
-            file_name=path.name,
-            mime=DOCX_MIME,
-            key="report_download",
-        )
-    else:
-        st.warning(f"보고서 파일을 찾을 수 없습니다: {path}")
 
 
 def _render_tabs(
@@ -628,7 +613,6 @@ def main() -> None:
         st.session_state.update(
             last_result=None,
             last_error=None,
-            report_bytes=None,
             vision_snapshot=None,
             last_baseline=baseline_images,
             last_inspection=inspection_images,
@@ -659,8 +643,6 @@ def main() -> None:
         else:
             st.session_state["last_result"] = result
             st.session_state["vision_snapshot"] = [it.discrepancy for it in result.items]
-            if result.report_path and Path(result.report_path).exists():
-                st.session_state["report_bytes"] = Path(result.report_path).read_bytes()
             term_slot.empty()
             verdict, part, reason = _compute_verdict(result.items)
             verdict_slot.markdown(

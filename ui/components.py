@@ -253,6 +253,7 @@ def report_doc(
     meta_right: list[tuple[str, str]],
     summary: str,
     table_rows: list[list[str]],
+    disclaimer: str,
 ) -> str:
     """백지 문서 룩의 감항 보고서."""
 
@@ -288,8 +289,6 @@ def report_doc(
   <p>{_e(summary)}</p>
   <h3>2. 이상 검출 형상</h3>
   {table}
-  <div class="ai-doc-note">
-    본 보고서는 데모 목적의 산출물로, 실제 감항성 판단에 사용할 수 없습니다.
-  </div>
+  <div class="ai-doc-note">{_e(disclaimer)}</div>
 </div>
 """
