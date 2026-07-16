@@ -1,0 +1,26 @@
+[project]
+name = "aeroinspect"
+version = "0.1.0"
+description = "항공기 축소 모형 형상 비교 점검(부품 누락 탐지) 멀티에이전트 데모"
+requires-python = ">=3.11"
+dependencies = [
+    "google-genai>=1.30.0",
+    "pydantic>=2.8",
+    "python-dotenv>=1.0",
+    "streamlit>=1.40",
+    "python-docx>=1.1",
+    "pillow>=10.4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.uv]
+package = false
