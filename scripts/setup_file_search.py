@@ -44,6 +44,16 @@ def find_store(client: Any) -> Any | None:
     return None
 
 
+def list_store_document_names(client: Any, store_name: str) -> set[str]:
+    """스토어에 이미 인덱싱된 문서 display_name 집합을 조회한다."""
+    names: set[str] = set()
+    for doc in client.file_search_stores.documents.list(parent=store_name):
+        display_name = getattr(doc, "display_name", None)
+        if display_name:
+            names.add(display_name)
+    return names
+
+
 def upload_catalog(client: Any, store_name: str, catalog_files: list[Path]) -> None:
     """카탈로그 파일들을 스토어에 업로드하고 인덱싱 완료까지 대기한다."""
     for i, path in enumerate(catalog_files, start=1):
@@ -104,11 +114,12 @@ def main() -> int:
         client.file_search_stores.delete(name=store.name, config={"force": True})
         store = None
 
+    catalog_files = sorted(config.CATALOG_DIR.glob("*.md"))
+    if not catalog_files:
+        print(f"오류: 카탈로그 문서가 없습니다 — {config.CATALOG_DIR}/*.md")
+        return 1
+
     if store is None:
-        catalog_files = sorted(config.CATALOG_DIR.glob("*.md"))
-        if not catalog_files:
-            print(f"오류: 카탈로그 문서가 없습니다 — {config.CATALOG_DIR}/*.md")
-            return 1
         print(f"스토어 신규 생성: '{STORE_DISPLAY_NAME}'")
         store = client.file_search_stores.create(
             config={"display_name": STORE_DISPLAY_NAME}
@@ -116,7 +127,16 @@ def main() -> int:
         print(f"카탈로그 업로드 시작 ({len(catalog_files)}개 문서)")
         upload_catalog(client, store.name, catalog_files)
     else:
-        print(f"기존 스토어 재사용 (업로드 생략): {store.name}")
+        # 부분 실패(업로드 도중 중단) 복구: 누락 문서만 추가 업로드한다.
+        existing = list_store_document_names(client, store.name)
+        missing = [p for p in catalog_files if p.name not in existing]
+        if missing:
+            print(
+                f"기존 스토어 재사용: {store.name} — 누락 문서 {len(missing)}개 추가 업로드"
+            )
+            upload_catalog(client, store.name, missing)
+        else:
+            print(f"기존 스토어 재사용 (문서 {len(existing)}개 확인, 업로드 생략): {store.name}")
 
     env_path = update_env(store.name)
     print(f".env 기록 완료: {ENV_KEY} → {store.name} ({env_path})")
