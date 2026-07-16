@@ -3,3 +3,11 @@ __pycache__/
 *.pyc
 .env
 .pytest_cache/
+
+# 파이프라인 산출물
+reports/*
+runs/*
+logs/*
+!reports/.gitkeep
+!runs/.gitkeep
+!logs/.gitkeep
