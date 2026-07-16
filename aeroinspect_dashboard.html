@@ -3,14 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AeroInspect - 실시간 항공기 형상 비교 점검</title>
-    <!-- Tailwind CSS CDN -->
+    <title>AeroInspect — 다중 에이전트 감항 검증 터미널</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts Inter & JetBrains Mono -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- FontAwesome for Aerospace Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -21,1535 +19,1857 @@
                         mono: ['JetBrains Mono', 'monospace'],
                     },
                     colors: {
-                        brand: {
-                            bg: '#02040a',
-                            card: 'rgba(15, 23, 42, 0.6)',
-                            border: 'rgba(30, 41, 59, 0.7)',
-                            cyan: '#00F0FF',
-                            cyanDim: 'rgba(0, 240, 255, 0.15)',
-                            amber: '#FFB800',
-                            amberDim: 'rgba(255, 184, 0, 0.15)',
-                            red: '#FF3E3E',
-                            redDim: 'rgba(255, 62, 62, 0.15)',
-                            green: '#10B981',
-                            greenDim: 'rgba(16, 185, 129, 0.15)',
-                        }
+                        ink:   { 900: '#04060c', 800: '#080c16', 700: '#0d1320', 600: '#141c2e', 500: '#1e2940' },
+                        focus: '#00E5FF',
+                        alert: '#FF3B3B',
+                        warn:  '#FFB020',
+                        ok:    '#22C55E',
                     },
-                    animation: {
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                        'float': 'float 6s ease-in-out infinite',
-                    },
-                    keyframes: {
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0)' },
-                            '50%': { transform: 'translateY(-5px)' },
-                        }
-                    }
                 }
             }
         }
     </script>
+
     <style>
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #02040a;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #1e293b;
-            border-radius: 4px;
-            border: 2px solid #02040a;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #334155;
-        }
-        
+        /* ── 컬러 규율 ────────────────────────────────────────────────
+           focus(cyan) : "지금 봐야 할 곳" 전용. 활성 에이전트 / 스캔 라인 / 주 CTA.
+           alert(red)  : 결함 및 NO-GO 판정 전용.
+           ok(green)   : 기준 형상 및 검증 통과 전용.
+           그 외 전부  : 회색. 강조색을 아껴야 강조가 작동한다.
+        ──────────────────────────────────────────────────────────── */
+
+        :root { --wipe: 50%; }
+
+        html { scroll-behavior: smooth; }
+
         body {
-            background: radial-gradient(circle at top, #0a1128 0%, #02040a 100%);
-        }
-        
-        /* Premium Glassmorphism Overrides */
-        .bg-brand-card, header, .bg-gray-950, .bg-gray-900, .bg-gray-800 {
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-        }
-        
-        .bg-brand-card {
-            background: linear-gradient(145deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%) !important;
-            border: 1px solid rgba(255, 255, 255, 0.08) !important;
-            border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            background:
+                radial-gradient(ellipse 90% 60% at 50% -10%, #0f1e3d 0%, transparent 60%),
+                #04060c;
+            background-attachment: fixed;
         }
 
-        .glow-cyan { box-shadow: 0 0 20px rgba(0, 240, 255, 0.3), inset 0 0 10px rgba(0, 240, 255, 0.1); }
-        .glow-red { box-shadow: 0 0 20px rgba(255, 62, 62, 0.3), inset 0 0 10px rgba(255, 62, 62, 0.1); }
-        .glow-green { box-shadow: 0 0 20px rgba(16, 185, 129, 0.3), inset 0 0 10px rgba(16, 185, 129, 0.1); }
-        
-        .ghost-view {
-            mix-blend-mode: screen;
-            pointer-events: none;
-            filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.5));
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #04060c; }
+        ::-webkit-scrollbar-thumb { background: #1e2940; border-radius: 5px; border: 2px solid #04060c; }
+        ::-webkit-scrollbar-thumb:hover { background: #2d3b57; }
+
+        .bg-grid {
+            position: fixed; inset: 0; pointer-events: none; z-index: 0;
+            background-size: 48px 48px;
+            background-image:
+                linear-gradient(to right, rgba(255,255,255,.028) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,.028) 1px, transparent 1px);
+            mask-image: radial-gradient(ellipse 70% 55% at 50% 30%, #000 20%, transparent 75%);
+            -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 30%, #000 20%, transparent 75%);
         }
-        
-        /* Modern Button Interactions */
-        button {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+        .panel {
+            background: linear-gradient(160deg, rgba(20,28,46,.72) 0%, rgba(8,12,22,.86) 100%);
+            border: 1px solid rgba(255,255,255,.07);
+            border-top-color: rgba(255,255,255,.11);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
         }
-        button:active:not(:disabled) {
-            transform: scale(0.97);
+
+        /* ── 무대: 비교 와이프 ──────────────────────────────────────── */
+        #baseline-clip { clip-path: inset(0 calc(100% - var(--wipe)) 0 0); }
+        #divider       { left: var(--wipe); }
+
+        .stage-idle #divider,
+        .stage-idle #frame-wrap { display: none; }
+
+        #divider { transition: opacity .3s ease; }
+        #divider .handle { box-shadow: 0 0 0 1px rgba(0,0,0,.5), 0 4px 20px rgba(0,0,0,.6); }
+
+        /* LOCK-ON 이후에는 대조가 끝났다. 분할선을 치워 결함 박스에 시선을 몰아준다.
+           (가장자리에 반쯤 잘린 핸들이 남는 것도 함께 방지된다) */
+        .wipe-locked #divider { opacity: 0; pointer-events: none; }
+
+        /* ── 스캔 라인 스윕 ─────────────────────────────────────────── */
+        @keyframes scan-sweep {
+            0%   { left: -4%;  opacity: 0; }
+            6%   { opacity: 1; }
+            94%  { opacity: 1; }
+            100% { left: 104%; opacity: 0; }
         }
-        
-        /* Custom Range Slider */
+        .scanning #scanline { animation: scan-sweep 2.1s cubic-bezier(.45,.05,.55,.95) infinite; }
+
+        /* ── LOCK-ON: bbox 슬램 ─────────────────────────────────────── */
+        @keyframes bbox-slam {
+            0%   { transform: scale(2.6); opacity: 0; }
+            55%  { transform: scale(.93); opacity: 1; }
+            78%  { transform: scale(1.04); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes bbox-breathe {
+            0%,100% { box-shadow: 0 0 0 1px rgba(255,59,59,.9), 0 0 26px rgba(255,59,59,.42), inset 0 0 34px rgba(255,59,59,.14); }
+            50%     { box-shadow: 0 0 0 1px rgba(255,59,59,1),  0 0 46px rgba(255,59,59,.72), inset 0 0 34px rgba(255,59,59,.24); }
+        }
+        #bbox.slam { animation: bbox-slam .5s cubic-bezier(.2,1.3,.4,1) both, bbox-breathe 1.9s ease-in-out .5s infinite; }
+
+        @keyframes shake {
+            0%,100% { transform: translate(0,0); }
+            15% { transform: translate(-7px, 3px); }
+            30% { transform: translate(6px, -4px); }
+            45% { transform: translate(-5px, -2px); }
+            60% { transform: translate(4px, 3px); }
+            80% { transform: translate(-2px, -1px); }
+        }
+        .shake { animation: shake .42s cubic-bezier(.36,.07,.19,.97) both; }
+
+        /* ── 식별 칩 ────────────────────────────────────────────────── */
+        @keyframes chip-in {
+            0%   { opacity: 0; transform: translateY(10px) scale(.94); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .chip-in { animation: chip-in .38s cubic-bezier(.2,1.1,.4,1) both; }
+
+        /* ── 기준 형상 착지 ─────────────────────────────────────────── */
+        @keyframes baseline-land {
+            0%   { opacity: 0; transform: translateX(-46px) scale(1.1); filter: blur(10px); }
+            100% { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
+        }
+        .baseline-land { animation: baseline-land .62s cubic-bezier(.2,.9,.3,1) both; }
+
+        @keyframes stamp-in {
+            0%   { opacity: 0; transform: scale(2.4) rotate(-18deg); }
+            60%  { opacity: 1; transform: scale(.92) rotate(-9deg); }
+            100% { opacity: 1; transform: scale(1) rotate(-9deg); }
+        }
+        .stamp-in { animation: stamp-in .5s cubic-bezier(.2,1.3,.4,1) both; }
+
+        /* ── 최종 판정 슬램 ─────────────────────────────────────────── */
+        @keyframes verdict-slam {
+            0%   { opacity: 0; transform: scale(1.7); filter: blur(16px); }
+            55%  { opacity: 1; transform: scale(.95); filter: blur(0); }
+            78%  { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+        .verdict-slam { animation: verdict-slam .62s cubic-bezier(.2,1.15,.35,1) both; }
+
+        @keyframes rule-draw { 0% { width: 0; } 100% { width: 100%; } }
+        .rule-draw { animation: rule-draw .55s cubic-bezier(.2,.9,.3,1) .45s both; }
+
+        /* ── 에이전트 타임라인 ──────────────────────────────────────── */
+        .node-dot { transition: all .32s cubic-bezier(.4,0,.2,1); }
+        .agent-node[data-state="running"] .node-dot {
+            background: #00E5FF; color: #04060c; border-color: #00E5FF;
+            box-shadow: 0 0 0 5px rgba(0,229,255,.16), 0 0 28px rgba(0,229,255,.6);
+            transform: scale(1.14);
+        }
+        .agent-node[data-state="running"] .node-name  { color: #fff; }
+        .agent-node[data-state="running"] .node-state { color: #00E5FF; }
+        .agent-node[data-state="done"] .node-dot {
+            background: rgba(34,197,94,.16); color: #22C55E; border-color: rgba(34,197,94,.55);
+        }
+        .agent-node[data-state="done"] .node-name  { color: #cbd5e1; }
+        .agent-node[data-state="done"] .node-state { color: #22C55E; }
+
+        @keyframes rail-flow { 0% { background-position: 0 0; } 100% { background-position: 26px 0; } }
+        #rail-fill {
+            transition: width .5s cubic-bezier(.4,0,.2,1);
+            background-image: linear-gradient(90deg, rgba(0,229,255,.35) 0 50%, #00E5FF 50% 100%);
+            background-size: 26px 100%;
+            animation: rail-flow .7s linear infinite;
+        }
+
+        /* ── 주 CTA ─────────────────────────────────────────────────── */
+        @keyframes cta-pulse {
+            0%,100% { box-shadow: 0 0 0 0 rgba(0,229,255,.45), 0 10px 40px rgba(0,229,255,.28); }
+            50%     { box-shadow: 0 0 0 16px rgba(0,229,255,0), 0 10px 40px rgba(0,229,255,.4); }
+        }
+        #btn-run:not(:disabled) { animation: cta-pulse 1.9s cubic-bezier(.4,0,.6,1) infinite; }
+        /* 판정이 떠 있는 동안 CTA 펄스가 배경 블러를 뚫고 새어나와 클라이맥스의 시선을 뺏는다. */
+        body.verdict-open #btn-run { animation: none; }
+        button { transition: all .24s cubic-bezier(.4,0,.2,1); }
+        button:active:not(:disabled) { transform: scale(.975); }
+
+        /* ── 오퍼레이터 패널 ────────────────────────────────────────── */
+        #operator { transition: transform .34s cubic-bezier(.4,0,.2,1); transform: translateX(100%); }
+        #operator.open { transform: translateX(0); }
+
         input[type=range] {
-            -webkit-appearance: none;
-            background: rgba(30, 41, 59, 0.8);
-            border-radius: 8px;
-            height: 6px;
+            -webkit-appearance: none; background: rgba(30,41,64,.9);
+            border-radius: 8px; height: 5px;
         }
         input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-            background: #00F0FF;
-            cursor: pointer;
-            box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
-            transition: transform 0.1s;
-        }
-        input[type=range]::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
+            -webkit-appearance: none; height: 15px; width: 15px; border-radius: 50%;
+            background: #00E5FF; cursor: pointer; box-shadow: 0 0 10px rgba(0,229,255,.55);
         }
 
-        .page-view {
-            transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        .tab-new::after {
+            content: ''; position: absolute; top: 9px; right: 9px;
+            width: 6px; height: 6px; border-radius: 50%; background: #00E5FF;
+            box-shadow: 0 0 8px #00E5FF;
         }
-        
-        /* Premium Background Grid Effect */
-        .bg-grid {
-            background-size: 40px 40px;
-            background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                              linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
-            -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: -1;
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+                transition-duration: .01ms !important;
+            }
         }
     </style>
 </head>
-<body class="bg-brand-bg text-gray-100 font-sans min-h-screen flex flex-col selection:bg-brand-cyan selection:text-black antialiased relative">
-    <div class="bg-grid"></div>
 
-    <!-- Global Header -->
-    <header class="border-b border-brand-border bg-brand-card/90 backdrop-blur sticky top-0 z-50 px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div class="flex items-center space-x-3 w-full md:w-auto">
-            <div class="w-10 h-10 bg-gradient-to-tr from-brand-cyan to-blue-600 rounded-lg flex items-center justify-center glow-cyan">
-                <i class="fa-solid fa-plane text-black text-xl font-bold"></i>
+<body class="bg-ink-900 text-slate-200 font-sans min-h-screen flex flex-col antialiased selection:bg-focus selection:text-black">
+<div class="bg-grid"></div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     HEADER
+═══════════════════════════════════════════════════════════════ -->
+<header class="relative z-30 border-b border-white/[.07] bg-ink-900/85 backdrop-blur-xl sticky top-0">
+    <div class="max-w-[1500px] mx-auto px-6 py-3.5 flex items-center justify-between gap-6">
+
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-slate-100 to-slate-400 flex items-center justify-center">
+                <i class="fa-solid fa-plane text-ink-900 text-base"></i>
             </div>
-            <div>
-                <h1 class="text-base md:text-lg font-bold tracking-wider text-white flex items-center">
-                    AEROINSPECT <span class="ml-2 text-[10px] bg-brand-cyanDim text-brand-cyan px-2 py-0.5 rounded border border-brand-cyan/30">REAL-TIME MULTI-AGENT</span>
-                </h1>
-                <p class="text-xs text-gray-400">실시간 다중 이미지 픽셀 및 시각적 검출 점검 터미널</p>
+            <div class="leading-tight">
+                <div class="text-[15px] font-extrabold tracking-[.16em] text-white">AEROINSPECT</div>
+                <div class="text-[11px] text-slate-500 tracking-wide">다중 에이전트 감항 검증 터미널</div>
             </div>
         </div>
 
-        <!-- Workflow Step Indicator -->
-        <div class="flex items-center space-x-3 bg-gray-900/60 p-1.5 rounded-lg border border-brand-border text-xs">
-            <button id="nav-btn-capture" onclick="switchMainView('capture')" class="px-3 py-1.5 rounded-md font-semibold transition bg-brand-cyan text-black" disabled>
-                <i class="fa-solid fa-camera-rotate mr-1.5"></i>1. 대상 촬영 및 AI 기준 매칭
+        <nav class="hidden lg:flex items-center gap-1 text-[11px] font-semibold tracking-wide">
+            <span class="phase-pill px-2.5 py-1 rounded text-slate-600" data-phase="identify">01 식별</span>
+            <i class="fa-solid fa-chevron-right text-[7px] text-slate-700"></i>
+            <span class="phase-pill px-2.5 py-1 rounded text-slate-600" data-phase="retrieve">02 기준 매칭</span>
+            <i class="fa-solid fa-chevron-right text-[7px] text-slate-700"></i>
+            <span class="phase-pill px-2.5 py-1 rounded text-slate-600" data-phase="analyze">03 대조 분석</span>
+            <i class="fa-solid fa-chevron-right text-[7px] text-slate-700"></i>
+            <span class="phase-pill px-2.5 py-1 rounded text-slate-600" data-phase="verdict">04 판정</span>
+        </nav>
+
+        <div class="flex items-center gap-3">
+            <div id="status-pill" class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/[.03] text-[11px] font-semibold tracking-wide text-slate-400">
+                <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                <span id="status-text">STANDBY</span>
+            </div>
+            <button onclick="toggleOperator()" title="오퍼레이터 패널 (~)"
+                    class="w-9 h-9 rounded-lg border border-white/10 bg-white/[.03] text-slate-500 hover:text-slate-200 hover:border-white/20">
+                <i class="fa-solid fa-gear text-sm"></i>
             </button>
-            <i class="fa-solid fa-chevron-right text-gray-600 text-[10px]"></i>
-            <button id="nav-btn-analysis" onclick="switchMainView('analysis')" class="px-3 py-1.5 rounded-md font-semibold transition text-gray-400 hover:text-white" disabled>
-                <i class="fa-solid fa-chart-line mr-1.5"></i>2. 실시간 멀티에이전트 분석
-            </button>
+        </div>
+    </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════════
+     MAIN
+═══════════════════════════════════════════════════════════════ -->
+<main class="relative z-10 flex-1 w-full max-w-[1500px] mx-auto px-6 py-6 space-y-5">
+
+    <!-- ───────── 무대 ───────── -->
+    <section class="panel rounded-2xl p-4 md:p-5">
+
+        <div class="flex items-center justify-between mb-3.5 px-1">
+            <div class="flex items-center gap-2.5">
+                <i class="fa-solid fa-crosshairs text-slate-500 text-sm"></i>
+                <h2 class="text-[13px] font-bold tracking-wide text-slate-300">형상 대조 작업대</h2>
+            </div>
+            <div id="stage-hint" class="text-[12px] text-slate-500">점검 대상 사진을 등록하면 자동으로 시작됩니다</div>
         </div>
 
-        <!-- Configuration Settings in Header -->
-        <div class="flex flex-wrap items-center gap-4 w-full md:w-auto justify-end text-xs">
-            <!-- Gemini API key config -->
-            <div class="flex items-center space-x-2 bg-gray-900 border border-brand-border rounded-lg p-1.5">
-                <span class="text-gray-400 pl-2 pr-1 font-semibold">Gemini API Key:</span>
-                <input type="password" id="gemini-key" placeholder="API Key 입력 (선택)" class="bg-brand-bg border border-brand-border rounded px-2 py-1 text-brand-cyan focus:outline-none focus:border-brand-cyan w-36 font-mono text-xs">
-                <span class="w-2.5 h-2.5 rounded-full bg-gray-500" id="api-status-indicator"></span>
-            </div>
-        </div>
-    </header>
+        <div id="stage" class="stage-idle relative aspect-[16/9] w-full rounded-xl overflow-hidden bg-[#05070d] border border-white/[.07]">
 
-    <!-- ========================================== -->
-    <!-- SCREEN 1: CAMERA CAPTURE / ACQUISITION PAGE -->
-    <!-- ========================================== -->
-    <main id="view-capture" class="page-view flex-1 p-4 md:p-6 max-w-[1600px] w-full mx-auto flex flex-col justify-between space-y-6">
-        
-        <!-- Screen Introduce -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-border/40 pb-4">
-            <div>
-                <h2 class="text-lg font-bold text-white flex items-center">
-                    <i class="fa-solid fa-camera-retro text-brand-cyan mr-2"></i> 기체 형상 이미지 획득 대시보드
-                </h2>
-                <p class="text-xs text-gray-400">기준 모델과 점검 기체의 사진을 웹캠으로 직접 촬영하거나 고화질 파일을 등록하십시오.</p>
-            </div>
-            
-            <!-- Quick Helper Indicator -->
-            <div class="bg-brand-cyan/5 border border-brand-cyan/20 px-3 py-2 rounded-lg text-xs flex items-center space-x-2">
-                <span class="flex h-2 w-2 relative">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-cyan opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-brand-cyan"></span>
-                </span>
-                <span class="text-gray-300">정비 팁: 동일한 구도와 흔들림 없는 각도에서 촬영 시 판독 정밀도가 99%까지 극대화됩니다.</span>
-            </div>
-        </div>
-
-        <!-- Capture Split Grid Workspace -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch flex-1 my-2">
-            
-            <!-- Left Slot: Baseline Configuration -->
-            <div class="bg-brand-card border border-brand-border rounded-2xl p-6 flex flex-col justify-between space-y-4 shadow-lg">
-                <div class="flex justify-between items-center border-b border-brand-border pb-3">
-                    <div class="space-y-0.5">
-                        <span class="text-[9px] font-mono tracking-widest text-brand-green uppercase font-bold">Slot 01</span>
-                        <h3 class="text-sm font-bold text-white flex items-center">
-                            <i class="fa-solid fa-database text-brand-green mr-2"></i> 공인 기준 형상 DB (Reference Data)
-                        </h3>
-                    </div>
-                    <span id="label-status-baseline" class="text-[10px] bg-gray-800 text-gray-400 px-2 py-1 rounded uppercase font-mono">시스템 대기</span>
+            <!-- 유휴: 드롭존 -->
+            <div id="dropzone" class="absolute inset-0 flex flex-col items-center justify-center gap-5 cursor-pointer group">
+                <div class="w-20 h-20 rounded-2xl border-2 border-dashed border-slate-700 group-hover:border-focus/60 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-camera text-3xl text-slate-600 group-hover:text-focus transition-colors"></i>
                 </div>
-
-                <!-- Capture Interactive Viewport (Baseline) -->
-                <div class="relative aspect-video w-full bg-gray-950 rounded-xl overflow-hidden border border-brand-border flex flex-col items-center justify-center group" id="container-live-baseline">
-                    
-                    <!-- Fallback Placeholder UI (Default) -->
-                    <div class="text-center p-8 space-y-3" id="ui-fallback-baseline">
-                        <div class="w-16 h-16 rounded-full bg-gray-900 border border-brand-border flex items-center justify-center mx-auto text-gray-500 group-hover:text-brand-green transition glow-green">
-                            <i class="fa-solid fa-robot text-2xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold text-brand-green">AI가 식별한 정상 조립 기준 이미지</p>
-                            <p class="text-[11px] text-gray-400 mt-1 leading-relaxed">우측에서 점검 대상을 촬영하면, AI가 기종을 파악하여<br>사내 공인 DB에서 기준 데이터를 <b>자동으로 매칭</b>합니다.</p>
-                        </div>
-                    </div>
-
-                    <!-- Live Webcam Video element (Hidden by default) -->
-                    <video id="video-feed-baseline" autoplay playsinline class="w-full h-full object-cover hidden"></video>
-
-                    <!-- Frame Captured Image View (Hidden by default) -->
-                    <img id="view-captured-baseline" class="w-full h-full object-contain hidden" />
-
-                    <!-- Shutter Capture Action Button Overlay -->
-                    <div id="btn-shutter-overlay-baseline" class="absolute bottom-4 inset-x-0 mx-auto w-14 h-14 bg-brand-green hover:bg-emerald-400 text-black rounded-full flex items-center justify-center cursor-pointer shadow-lg hidden" onclick="captureSnapshotFrame('baseline')">
-                        <i class="fa-solid fa-shutter-button text-xl"></i>
+                <div class="text-center space-y-1.5">
+                    <div class="text-[17px] font-bold text-slate-200">점검 대상 사진 1장을 등록하십시오</div>
+                    <div class="text-[13px] text-slate-500 leading-relaxed">
+                        기종·부위·각도는 AI가 스스로 식별합니다.<br>
+                        기준 형상은 사내 공인 DB에서 <span class="text-slate-300 font-semibold">자동으로 매칭</span>됩니다.
                     </div>
                 </div>
-
-                <!-- Interactive Media Controls for Baseline -->
-                <div class="space-y-3">
-                    <div class="grid grid-cols-1 gap-3">
-                        <!-- 카메라 촬영 기능은 기준 데이터이므로 제거됨 -->
-                        <button onclick="triggerFileSelector('baseline')" class="bg-gray-900 hover:bg-gray-800 border border-brand-green/30 text-brand-green text-xs py-3 rounded-lg flex items-center justify-center space-x-2 font-medium transition hover:glow-green">
-                            <i class="fa-solid fa-cloud-arrow-down"></i> <span>매칭된 기준 데이터 수동 로드 (데모용)</span>
-                        </button>
-                    </div>
-
-                    <input type="file" id="uploader-baseline" accept="image/*" class="hidden" onchange="handleFileProcessing(this, 'baseline')">
-
-                    <!-- Reset Image Option -->
-                    <button id="btn-reset-baseline" onclick="resetSelectedImage('baseline')" class="w-full text-[11px] text-red-400 hover:text-red-300 bg-red-950/20 hover:bg-red-950/40 border border-red-900/40 py-2 rounded-md hidden transition">
-                        <i class="fa-solid fa-trash-can mr-1.5"></i>등록된 기준 기체 데이터 초기화
+                <div class="flex items-center gap-2.5">
+                    <button onclick="event.stopPropagation(); pickFile('inspection')"
+                            class="px-4 py-2.5 rounded-lg bg-white/[.06] hover:bg-white/[.11] border border-white/10 text-[13px] font-semibold text-slate-200">
+                        <i class="fa-solid fa-file-arrow-up mr-2 text-slate-400"></i>파일 선택
+                    </button>
+                    <button onclick="event.stopPropagation(); startCamera()"
+                            class="px-4 py-2.5 rounded-lg bg-white/[.06] hover:bg-white/[.11] border border-white/10 text-[13px] font-semibold text-slate-200">
+                        <i class="fa-solid fa-camera mr-2 text-slate-400"></i>카메라 촬영
                     </button>
                 </div>
+                <div class="text-[11px] text-slate-600">드래그 앤 드롭도 지원합니다</div>
             </div>
 
-            <!-- Right Slot: Live Inspection Configuration -->
-            <div class="bg-brand-card border border-brand-border rounded-2xl p-6 flex flex-col justify-between space-y-4 shadow-lg">
-                <div class="flex justify-between items-center border-b border-brand-border pb-3">
-                    <div class="space-y-0.5">
-                        <span class="text-[9px] font-mono tracking-widest text-brand-cyan uppercase font-bold">Slot 02</span>
-                        <h3 class="text-sm font-bold text-white flex items-center">
-                            <i class="fa-solid fa-compass-drafting text-brand-cyan mr-2"></i> 실시간 점검 대상 (Live Inspection)
-                        </h3>
-                    </div>
-                    <span id="label-status-inspection" class="text-[10px] bg-gray-800 text-gray-400 px-2 py-1 rounded uppercase font-mono">미등록</span>
+            <!-- 라이브 카메라 -->
+            <video id="cam" autoplay playsinline class="absolute inset-0 w-full h-full object-cover hidden"></video>
+            <button id="shutter" onclick="captureFrame()"
+                    class="absolute bottom-6 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-white hover:bg-slate-200 border-4 border-white/30 hidden z-20">
+                <i class="fa-solid fa-circle text-ink-900 text-2xl"></i>
+            </button>
+
+            <!-- 프레임 스택 -->
+            <div id="frame-wrap" class="absolute inset-0">
+                <img id="img-inspection" class="absolute inset-0 w-full h-full object-contain" alt="점검 대상">
+                <div id="baseline-clip" class="absolute inset-0">
+                    <img id="img-baseline" class="absolute inset-0 w-full h-full object-contain" alt="기준 형상">
+                    <div class="absolute inset-0 bg-ok/[.05] pointer-events-none"></div>
                 </div>
 
-                <!-- Capture Interactive Viewport (Inspection) -->
-                <div class="relative aspect-video w-full bg-gray-950 rounded-xl overflow-hidden border border-brand-border flex flex-col items-center justify-center group" id="container-live-inspection">
-                    
-                    <!-- Fallback Placeholder UI (Default) -->
-                    <div class="text-center p-8 space-y-3" id="ui-fallback-inspection">
-                        <div class="w-16 h-16 rounded-full bg-gray-900 border border-brand-border flex items-center justify-center mx-auto text-gray-500 group-hover:text-brand-cyan transition">
-                            <i class="fa-solid fa-circle-play text-2xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold text-gray-300">부품이 누락된 라이브 점검 이미지 소스</p>
-                            <p class="text-[11px] text-gray-500 mt-1">카메라 렌즈를 기준 사진의 시각과 일치시켜 획득하십시오.</p>
-                        </div>
-                    </div>
+                <div id="label-ref" class="absolute top-3.5 left-3.5 z-10 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-ink-900/85 border border-ok/25 backdrop-blur transition-opacity duration-200">
+                    <i class="fa-solid fa-database text-ok text-[10px]"></i>
+                    <span class="text-[11px] font-bold tracking-wide text-ok">기준 형상 · REFERENCE DB</span>
+                </div>
+                <div id="label-live" class="absolute top-3.5 right-3.5 z-10 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-ink-900/85 border border-white/15 backdrop-blur transition-opacity duration-200">
+                    <span class="text-[11px] font-bold tracking-wide text-slate-300">점검 대상 · LIVE</span>
+                    <i class="fa-solid fa-camera text-slate-400 text-[10px]"></i>
+                </div>
 
-                    <!-- Live Webcam Video element (Hidden by default) -->
-                    <video id="video-feed-inspection" autoplay playsinline class="w-full h-full object-cover hidden"></video>
-
-                    <!-- Ghost View Layer (Position Alignment Helper) -->
-                    <img id="layer-ghost-overlay" class="absolute inset-0 w-full h-full object-cover ghost-view hidden opacity-0" />
-
-                    <!-- Frame Captured Image View (Hidden by default) -->
-                    <img id="view-captured-inspection" class="w-full h-full object-contain hidden" />
-
-                    <!-- Shutter Capture Action Button Overlay -->
-                    <div id="btn-shutter-overlay-inspection" class="absolute bottom-4 inset-x-0 mx-auto w-14 h-14 bg-brand-cyan hover:bg-cyan-400 text-black rounded-full flex items-center justify-center cursor-pointer shadow-lg hidden" onclick="captureSnapshotFrame('inspection')">
-                        <i class="fa-solid fa-shutter-button text-xl"></i>
+                <!-- MATCHED 스탬프 -->
+                <div id="stamp" class="absolute top-1/2 left-[25%] -translate-x-1/2 -translate-y-1/2 z-20 hidden pointer-events-none">
+                    <div class="px-4 py-2 border-[3px] border-ok rounded-lg bg-ok/10 backdrop-blur-sm">
+                        <div class="text-[19px] font-black tracking-[.15em] text-ok">MATCHED</div>
+                        <div class="text-[9px] font-mono text-ok/80 text-center tracking-wider" id="stamp-pn">—</div>
                     </div>
                 </div>
 
-                <!-- Interactive Media Controls for Inspection -->
-                <div class="space-y-3">
-                    <!-- Align Ghost View Assistant (Only active when baseline is uploaded) -->
-                    <div class="p-3 bg-gray-900/60 rounded-lg border border-brand-border/60 flex items-center justify-between gap-4" id="align-assistant-wrapper">
-                        <div class="flex-1 space-y-0.5">
-                            <span class="text-[10px] font-bold text-brand-cyan flex items-center">
-                                <i class="fa-solid fa-circle-nodes mr-1.5 animate-pulse"></i>시점 일치용 고스트 오버레이
-                            </span>
-                            <p class="text-[9px] text-gray-400">카메라 프레임에 기준 이미지를 반투명하게 투사합니다.</p>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <input type="range" id="ghost-slider" min="0" max="100" value="0" oninput="adjustGhostTransparency(this.value)" class="w-24 accent-brand-cyan bg-gray-800 h-1 rounded cursor-pointer">
-                            <span id="ghost-slider-txt" class="text-[10px] font-mono text-gray-400 w-8 text-right">0%</span>
-                        </div>
+                <!-- 분할선 -->
+                <div id="divider" class="absolute top-0 bottom-0 w-px bg-white/70 z-20 cursor-ew-resize -translate-x-1/2">
+                    <div class="handle absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white flex items-center justify-center">
+                        <i class="fa-solid fa-left-right text-ink-900 text-[11px]"></i>
                     </div>
+                </div>
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <button id="btn-camera-inspection" onclick="toggleWebcamStream('inspection')" class="bg-gray-900 hover:bg-gray-800 border border-brand-border text-white text-xs py-3 rounded-lg flex items-center justify-center space-x-2 font-medium transition">
-                            <i class="fa-solid fa-video text-brand-cyan"></i> <span>실시간 카메라 촬영</span>
-                        </button>
-                        <button onclick="triggerFileSelector('inspection')" class="bg-gray-900 hover:bg-gray-800 border border-brand-border text-white text-xs py-3 rounded-lg flex items-center justify-center space-x-2 font-medium transition">
-                            <i class="fa-solid fa-file-arrow-up text-brand-cyan"></i> <span>로컬 파일 선택</span>
-                        </button>
+                <!-- 스캔 라인 -->
+                <div id="scanline" class="absolute top-0 bottom-0 w-[2px] z-20 opacity-0 pointer-events-none"
+                     style="background: linear-gradient(to bottom, transparent, #00E5FF 12%, #fff 50%, #00E5FF 88%, transparent);
+                            box-shadow: 0 0 26px 5px rgba(0,229,255,.75);"></div>
+
+                <!-- 결함 bbox -->
+                <div id="bbox" class="absolute z-30 hidden border-2 border-alert rounded-[3px] bg-alert/[.08] pointer-events-none">
+                    <div class="absolute -top-[26px] left-0 flex items-center gap-1.5 px-2 py-1 rounded-t-md bg-alert whitespace-nowrap">
+                        <i class="fa-solid fa-triangle-exclamation text-ink-900 text-[9px]"></i>
+                        <span id="bbox-label" class="text-[11px] font-black tracking-wide text-ink-900">MISSING PART</span>
                     </div>
+                    <span class="absolute -top-1 -left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-white"></span>
+                    <span class="absolute -top-1 -right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-white"></span>
+                    <span class="absolute -bottom-1 -left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-white"></span>
+                    <span class="absolute -bottom-1 -right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-white"></span>
+                </div>
 
-                    <input type="file" id="uploader-inspection" accept="image/*" class="hidden" onchange="handleFileProcessing(this, 'inspection')">
+                <!-- 식별 칩 -->
+                <div id="id-chips" class="absolute bottom-3.5 left-3.5 z-30 flex flex-col gap-1.5 items-start"></div>
 
-                    <!-- Reset Image Option -->
-                    <button id="btn-reset-inspection" onclick="resetSelectedImage('inspection')" class="w-full text-[11px] text-red-400 hover:text-red-300 bg-red-950/20 hover:bg-red-950/40 border border-red-900/40 py-2 rounded-md hidden transition">
-                        <i class="fa-solid fa-trash-can mr-1.5"></i>등록된 점검 대상 데이터 초기화
-                    </button>
+                <!-- 드래그 리맵 힌트 (오퍼레이터 전용) -->
+                <div id="remap-hint" class="absolute bottom-3.5 right-3.5 z-30 hidden px-2.5 py-1.5 rounded-md bg-ink-900/90 border border-focus/30 text-[10px] font-mono text-focus">
+                    드래그하여 결함 영역 재지정
                 </div>
             </div>
         </div>
 
-        <!-- Next Stage Navigation Row -->
-        <div class="p-5 bg-gradient-to-r from-gray-950 to-brand-card border border-brand-border rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="space-y-0.5">
-                <h4 class="text-sm font-semibold text-white flex items-center">
-                    <i class="fa-solid fa-circle-play text-brand-cyan mr-1.5"></i> 이미지 데이터 획득 진척
-                </h4>
-                <p class="text-xs text-gray-400">2장의 이미지가 온전히 확보되면 정비 점검 AI 터미널 잠금이 해제됩니다.</p>
+        <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3.5">
+            <div class="flex items-center gap-2.5 text-[12px] text-slate-500">
+                <i class="fa-solid fa-shield-halved text-slate-600"></i>
+                <span>결정론적 안전 가드레일이 AI 판단을 교차 검증합니다</span>
             </div>
-            
-            <button id="btn-proceed-to-analysis" onclick="switchMainView('analysis')" class="bg-gray-800 text-gray-500 cursor-not-allowed font-bold py-3 px-6 rounded-lg shadow-lg text-xs flex items-center space-x-2 transition-all duration-300" disabled>
-                <span>점검 분석 터미널로 진입 (비활성)</span>
-                <i class="fa-solid fa-arrow-right"></i>
-            </button>
-        </div>
-    </main>
-
-    <!-- ========================================== -->
-    <!-- SCREEN 2: MULTI-AGENT ANALYSIS PAGE        -->
-    <!-- ========================================== -->
-    <main id="view-analysis" class="page-view flex-1 p-4 md:p-6 max-w-[1920px] w-full mx-auto grid grid-cols-1 xl:grid-cols-12 gap-6 hidden">
-        
-        <!-- Left Sidebar: Controls & Pipeline Stepper (4 Columns) -->
-        <aside class="xl:col-span-4 space-y-6 flex flex-col">
-            
-            <!-- Quick Navigation Back -->
-            <button onclick="switchMainView('capture')" class="w-full bg-gray-900 hover:bg-gray-800 border border-brand-border py-3 px-4 rounded-xl text-xs font-semibold text-gray-300 transition flex items-center justify-center space-x-2">
-                <i class="fa-solid fa-arrow-left"></i>
-                <span>재촬영 및 이미지 등록 화면으로 돌아가기</span>
-            </button>
-
-            <!-- Control Parameters Panel -->
-            <div class="bg-brand-card border border-brand-border rounded-xl p-5 space-y-4 shadow-lg">
-                <h3 class="text-xs font-bold uppercase text-gray-400 tracking-wider flex items-center border-b border-brand-border pb-3">
-                    <i class="fa-solid fa-sliders text-brand-cyan mr-2"></i> 정밀 제어 매개변수
-                </h3>
-
-                <!-- Configuration inputs -->
-                <div class="space-y-4">
-                    <div>
-                        <div class="flex justify-between items-center mb-1">
-                            <label class="text-xs text-gray-400 font-medium">검증 임계값 (Confidence Threshold)</label>
-                            <span class="text-xs font-mono text-brand-cyan" id="val-confidence-th">0.60</span>
-                        </div>
-                        <input type="range" id="input-confidence-th" min="0.10" max="0.95" step="0.05" value="0.60" oninput="document.getElementById('val-confidence-th').innerText = parseFloat(this.value).toFixed(2)" class="w-full accent-brand-cyan bg-gray-800 h-1 rounded-lg cursor-pointer">
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs text-gray-400 mb-1">판독 모델</label>
-                            <select id="select-vision-model" class="w-full bg-gray-900 border border-brand-border rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-brand-cyan">
-                                <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                                <option value="gemini-2.5-pro">gemini-2.5-pro (고성능)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-400 mb-1">점검 기술자</label>
-                            <input type="text" id="input-inspector" value="Aero Tech (정비팀)" class="w-full bg-gray-900 border border-brand-border rounded px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-brand-cyan">
-                        </div>
-                    </div>
-
-                    <!-- Force Side Mismatch for Demo -->
-                    <div class="flex items-center space-x-2 pt-1 border-t border-brand-border/60">
-                        <input type="checkbox" id="check-side-mismatch" class="rounded bg-gray-900 border-brand-border text-brand-cyan focus:ring-0 cursor-pointer">
-                        <label for="check-side-mismatch" class="text-[11px] text-gray-300 cursor-pointer">방향 불일치 규칙 테스트 (데모 강제 플래그)</label>
-                    </div>
-                </div>
-
-                <!-- Run Core Analysis Button -->
-                <button id="btn-run-inspection" onclick="executeAeroInspectPipeline()" class="w-full bg-gradient-to-r from-brand-cyan to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-bold py-3 px-4 rounded-lg shadow-lg hover:shadow-cyan-500/25 transition-all flex items-center justify-center space-x-2 text-xs">
-                    <i class="fa-solid fa-magnifying-glass-chart text-sm"></i>
-                    <span>항공기 형상 비교 점검 시작</span>
+            <div class="flex items-center gap-2.5">
+                <button id="btn-reset" onclick="resetAll()"
+                        class="px-3.5 py-3 rounded-lg border border-white/10 bg-white/[.03] text-[12px] font-semibold text-slate-500 hover:text-slate-200 hidden">
+                    <i class="fa-solid fa-rotate-right mr-1.5"></i>초기화
+                </button>
+                <button id="btn-run" onclick="runPipeline()" disabled
+                        class="px-7 py-3.5 rounded-lg bg-ink-600 text-slate-600 font-extrabold text-[14px] tracking-wide cursor-not-allowed flex items-center gap-2.5">
+                    <i class="fa-solid fa-magnifying-glass-chart"></i>
+                    <span id="btn-run-text">점검 개시</span>
                 </button>
             </div>
-
-            <!-- Multi-Agent Stepper Status -->
-            <div class="bg-brand-card border border-brand-border rounded-xl p-5 space-y-4">
-                <h3 class="text-xs font-bold uppercase text-gray-400 tracking-wider flex items-center">
-                    <i class="fa-solid fa-diagram-next text-brand-cyan mr-2"></i> 에이전트 파이프라인 실시간 지표
-                </h3>
-                
-                <div class="space-y-3">
-                    <!-- Agent 01 -->
-                    <div id="step-card-vision" class="p-3 rounded-lg border border-gray-800 bg-gray-950/40 space-y-1.5">
-                        <div class="flex items-center justify-between text-[10px]">
-                            <span class="font-bold tracking-widest text-brand-cyan uppercase">AGENT 01</span>
-                            <span id="step-badge-vision" class="text-gray-500 uppercase px-1.5 py-0.5 rounded font-bold">READY</span>
-                        </div>
-                        <h4 class="text-[11px] font-bold text-white">VisionAgent (다중 픽셀 대조 검출)</h4>
-                        <div class="h-1 w-full bg-gray-800 rounded-full overflow-hidden">
-                            <div id="step-bar-vision" class="h-full bg-brand-cyan w-0 transition-all duration-300"></div>
-                        </div>
-                    </div>
-
-                    <!-- Agent 02 -->
-                    <div id="step-card-grounding" class="p-3 rounded-lg border border-gray-800 bg-gray-950/40 space-y-1.5">
-                        <div class="flex items-center justify-between text-[10px]">
-                            <span class="font-bold tracking-widest text-brand-cyan uppercase">AGENT 02</span>
-                            <span id="step-badge-grounding" class="text-gray-500 uppercase px-1.5 py-0.5 rounded font-bold">READY</span>
-                        </div>
-                        <h4 class="text-[11px] font-bold text-white">GroundingAgent (규격서 카탈로그 연동)</h4>
-                        <div class="h-1 w-full bg-gray-800 rounded-full overflow-hidden">
-                            <div id="step-bar-grounding" class="h-full bg-brand-cyan w-0 transition-all duration-300"></div>
-                        </div>
-                    </div>
-
-                    <!-- Agent 03 -->
-                    <div id="step-card-validator" class="p-3 rounded-lg border border-gray-800 bg-gray-950/40 space-y-1.5">
-                        <div class="flex items-center justify-between text-[10px]">
-                            <span class="font-bold tracking-widest text-brand-cyan uppercase">AGENT 03</span>
-                            <span id="step-badge-validator" class="text-gray-500 uppercase px-1.5 py-0.5 rounded font-bold">READY</span>
-                        </div>
-                        <h4 class="text-[11px] font-bold text-white">Deterministic Rule (무결성 통제 검증)</h4>
-                        <div class="h-1 w-full bg-gray-800 rounded-full overflow-hidden">
-                            <div id="step-bar-validator" class="h-full bg-brand-cyan w-0 transition-all duration-300"></div>
-                        </div>
-                    </div>
-
-                    <!-- Agent 04 -->
-                    <div id="step-card-reporter" class="p-3 rounded-lg border border-gray-800 bg-gray-950/40 space-y-1.5">
-                        <div class="flex items-center justify-between text-[10px]">
-                            <span class="font-bold tracking-widest text-brand-cyan uppercase">AGENT 04</span>
-                            <span id="step-badge-reporter" class="text-gray-500 uppercase px-1.5 py-0.5 rounded font-bold">READY</span>
-                        </div>
-                        <h4 class="text-[11px] font-bold text-white">ReportAgent (감항 완결 보고서 생성)</h4>
-                        <div class="h-1 w-full bg-gray-800 rounded-full overflow-hidden">
-                            <div id="step-bar-reporter" class="h-full bg-brand-cyan w-0 transition-all duration-300"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Live Event Logs Terminal -->
-            <div class="bg-brand-card border border-brand-border rounded-xl p-4 flex-1 flex flex-col min-h-[180px]">
-                <h3 class="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-2 flex items-center">
-                    <i class="fa-solid fa-network-wired text-brand-cyan mr-2"></i> 에이전트 이벤트 스트림
-                </h3>
-                <div id="mini-terminal" class="bg-black/90 rounded-lg p-3 flex-1 font-mono text-[10px] text-brand-cyan overflow-y-auto space-y-1 border border-brand-border min-h-[140px] max-h-[220px]">
-                    <div>[SYSTEM] Analysis terminal operational. Ready for core orchestration...</div>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Center/Right: Core Workspace & Diagnostic Tabs (8 Columns) -->
-        <section class="xl:col-span-8 space-y-6">
-            
-            <!-- Dual Visual Analysis Preview Dashboard -->
-            <div class="bg-brand-card border border-brand-border rounded-xl p-5 shadow-lg">
-                <div class="flex justify-between items-center border-b border-brand-border pb-3 mb-4">
-                    <h2 class="text-xs font-semibold tracking-wide uppercase text-gray-300 flex items-center">
-                        <i class="fa-solid fa-laptop-code text-brand-cyan mr-2"></i> 비전 매칭 대조 작업대
-                    </h2>
-                    <span class="text-xs text-gray-400 flex items-center" id="demo-mode-badge">
-                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500 mr-1.5"></span>시뮬레이터 모드 작동 중
-                    </span>
-                </div>
-
-                <!-- Split Grid View for Image Overlays and bounding boxes -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Target Viewport Left: Baseline -->
-                    <div class="space-y-1.5">
-                        <span class="text-[11px] font-bold text-brand-green flex items-center">
-                            <i class="fa-solid fa-circle-check mr-1.5"></i> 기준 형상 이미지 (Reference Frame)
-                        </span>
-                        <div class="relative aspect-video w-full bg-gray-950 rounded-lg overflow-hidden border border-gray-800 flex items-center justify-center" id="container-analysis-baseline">
-                            <img id="img-analysis-baseline" class="w-full h-full object-contain" />
-                        </div>
-                    </div>
-
-                    <!-- Target Viewport Right: Inspection -->
-                    <div class="space-y-1.5">
-                        <span class="text-[11px] font-bold text-brand-cyan flex items-center">
-                            <i class="fa-solid fa-scanner mr-1.5 animate-pulse"></i> 실시간 점검 이미지 (Live Inspection Target)
-                        </span>
-                        <div class="relative aspect-video w-full bg-gray-950 rounded-lg overflow-hidden border border-gray-800 flex items-center justify-center" id="container-analysis-inspection">
-                            <img id="img-analysis-inspection" class="w-full h-full object-contain" />
-                            
-                            <!-- Bounding Box Visual Overlay -->
-                            <div id="bbox-overlay-analysis" class="absolute border-2 border-brand-red pointer-events-none hidden bg-brand-red/10 animate-pulse">
-                                <div class="absolute -top-6 left-0 bg-brand-red text-black text-[9px] font-bold px-1.5 py-0.5 rounded-t" id="bbox-analysis-label">MISSING</div>
-                            </div>
-                            <!-- Manual Drawing Tool for Simulating Custom Defect Box -->
-                            <div id="manual-canvas-hint" class="absolute top-2 right-2 bg-black/80 text-[8px] text-brand-cyan px-2 py-1 rounded">
-                                💡 화면을 마우스 드래그하여 임의 결함 영역을 즉석에서 재매핑할 수 있습니다.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tab Output Section -->
-            <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
-                <div class="flex border-b border-brand-border bg-gray-950/50 text-[11px]">
-                    <button onclick="switchAnalysisTab('tab-vision')" id="btn-tab-vision" class="flex-1 px-4 py-3 font-semibold uppercase text-brand-cyan border-b-2 border-brand-cyan bg-brand-card transition flex items-center justify-center space-x-1.5">
-                        <i class="fa-solid fa-eye"></i> <span>Vision Output</span>
-                    </button>
-                    <button onclick="switchAnalysisTab('tab-grounding')" id="btn-tab-grounding" class="flex-1 px-4 py-3 font-semibold uppercase text-gray-400 hover:text-gray-200 transition flex items-center justify-center space-x-1.5 border-b-2 border-transparent">
-                        <i class="fa-solid fa-magnifying-glass-location"></i> <span>Grounding Specs</span>
-                    </button>
-                    <button onclick="switchAnalysisTab('tab-validator')" id="btn-tab-validator" class="flex-1 px-4 py-3 font-semibold uppercase text-gray-400 hover:text-gray-200 transition flex items-center justify-center space-x-1.5 border-b-2 border-transparent">
-                        <i class="fa-solid fa-shield-halved"></i> <span>Validator Flags</span>
-                    </button>
-                    <button onclick="switchAnalysisTab('tab-report')" id="btn-tab-report" class="flex-1 px-4 py-3 font-semibold uppercase text-gray-400 hover:text-gray-200 transition flex items-center justify-center space-x-1.5 border-b-2 border-transparent">
-                        <i class="fa-solid fa-file-contract"></i> <span>Generated Report</span>
-                    </button>
-                </div>
-
-                <div class="p-5 min-h-[280px]">
-                    <!-- Tab 1: Vision -->
-                    <div id="tab-vision" class="tab-pane block space-y-4">
-                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                            <div class="lg:col-span-7 space-y-3 text-xs">
-                                <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">실시간 이미지 비교 판정 데이터</h4>
-                                <div class="border border-brand-border rounded-lg overflow-hidden bg-gray-950/40">
-                                    <table class="w-full text-left">
-                                        <thead class="bg-gray-900 text-gray-400 uppercase text-[9px]">
-                                            <tr>
-                                                <th class="px-4 py-2.5">ID</th>
-                                                <th class="px-4 py-2.5">분류</th>
-                                                <th class="px-4 py-2.5">부품 식별명</th>
-                                                <th class="px-4 py-2.5">조향 구분</th>
-                                                <th class="px-4 py-2.5">신뢰 등급</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="discrepancy-table-body">
-                                            <tr>
-                                                <td colspan="5" class="px-4 py-8 text-center text-gray-500">
-                                                    <i class="fa-solid fa-hourglass mr-2 animate-pulse"></i>상단의 [항공기 형상 비교 점검 시작] 버튼을 눌러 점검을 가동하십시오.
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="p-3 bg-gray-900/50 rounded-lg border border-brand-border space-y-1">
-                                    <span class="text-[10px] font-bold text-brand-cyan block">Vision Agent 감지 서술</span>
-                                    <p id="vision-summary-txt" class="italic text-gray-400">"분석 전 대기 상태"</p>
-                                </div>
-                            </div>
-                            <div class="lg:col-span-5 space-y-2 text-xs">
-                                <span class="text-gray-400 block font-semibold">Structured API Response JSON</span>
-                                <pre id="vision-json-preview" class="bg-gray-950 p-4 rounded-lg border border-brand-border text-[11px] text-brand-cyan font-mono overflow-x-auto h-56">{}</pre>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Tab 2: Grounding -->
-                    <div id="tab-grounding" class="tab-pane hidden space-y-4">
-                        <div class="flex justify-between items-center pb-2 border-b border-brand-border">
-                            <div>
-                                <h4 class="text-xs font-semibold text-white">가상 부품 규격서(mini-IPC) 연계 결과</h4>
-                                <p class="text-[11px] text-gray-400">정밀 조립 토크 및 부품 승인 기술 문서 매칭</p>
-                            </div>
-                            <div id="g-status-badge"></div>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-                            <div class="bg-gray-950/40 p-4 rounded-lg border border-brand-border space-y-3">
-                                <div class="flex justify-between border-b border-gray-800 pb-2">
-                                    <span class="text-gray-400">부품 정식 등록명:</span>
-                                    <span class="font-semibold text-white" id="g-part-name">--</span>
-                                </div>
-                                <div class="flex justify-between border-b border-gray-800 pb-2">
-                                    <span class="text-gray-400">Part Number (P/N):</span>
-                                    <span class="font-mono text-brand-cyan font-semibold" id="g-part-num">--</span>
-                                </div>
-                                <div class="flex justify-between border-b border-gray-800 pb-2">
-                                    <span class="text-gray-400">항공 감항성 등급:</span>
-                                    <span class="font-bold text-white" id="g-part-critical">--</span>
-                                </div>
-                                <div class="flex justify-between border-b border-gray-800 pb-2">
-                                    <span class="text-gray-400">누락 기체 출고 제한:</span>
-                                    <span class="font-semibold text-brand-red" id="g-part-disposition">--</span>
-                                </div>
-                                <div class="space-y-1 pt-1">
-                                    <span class="text-gray-400 block font-semibold text-[10px]">출처 인용 (Citations):</span>
-                                    <div class="bg-gray-900 p-2 rounded text-gray-300 font-mono text-[10px]" id="g-part-citations">
-                                        문서 참조 준비 중
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="bg-gray-950/40 p-4 rounded-lg border border-brand-border space-y-2">
-                                <h5 class="text-[11px] font-semibold text-gray-300 uppercase tracking-widest flex items-center">
-                                    <i class="fa-solid fa-tools text-brand-cyan mr-1.5"></i> 재설치 조립 시방서 절차
-                                </h5>
-                                <ol id="g-part-steps" class="space-y-1.5 text-gray-400 list-decimal pl-4 leading-relaxed text-[11px]">
-                                    <li>대조 절차 진행 시 규격서 데이터가 파싱됩니다.</li>
-                                </ol>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Tab 3: Validator -->
-                    <div id="tab-validator" class="tab-pane hidden space-y-4">
-                        <div class="p-4 rounded-lg bg-gray-950/50 border border-brand-border">
-                            <h4 class="text-xs font-bold text-gray-400 tracking-wider uppercase mb-3">설계 및 무결성 제어 센터 (Deterministic Guardrail)</h4>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-                                <div id="val-status-box" class="p-5 rounded-lg bg-gray-900 border border-brand-border flex flex-col items-center justify-center text-center space-y-2">
-                                    <div class="w-12 h-12 rounded-full bg-gray-850 flex items-center justify-center text-2xl text-gray-600">
-                                        <i class="fa-solid fa-shield"></i>
-                                    </div>
-                                    <div class="font-bold text-gray-300">검증 진행 전</div>
-                                </div>
-
-                                <div class="space-y-2">
-                                    <span class="text-[10px] font-bold text-gray-400 block uppercase tracking-wider">탐지된 감항 위반 의심 세그먼트</span>
-                                    <div id="val-flags-list" class="space-y-2 max-h-40 overflow-y-auto">
-                                        <div class="p-3 rounded bg-gray-900/50 text-gray-500 text-center border border-gray-850 text-[11px]">
-                                            검사 실행 후 규칙 기반 대조가 연산됩니다.
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Tab 4: Report -->
-                    <div id="tab-report" class="tab-pane hidden space-y-4">
-                        <div class="flex justify-between items-center pb-2 border-b border-brand-border">
-                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest">자동 작성 정비 완료 보고서</h4>
-                            <button onclick="copyDocumentToClipboard()" class="bg-brand-cyan hover:bg-cyan-400 text-black font-semibold text-xs py-1.5 px-3 rounded shadow transition flex items-center">
-                                <i class="fa-solid fa-copy mr-1.5"></i> 클립보드 복사
-                            </button>
-                        </div>
-
-                        <div class="bg-white text-gray-950 p-6 rounded-lg shadow-inner max-w-2xl mx-auto space-y-5 font-serif max-h-[300px] overflow-y-auto text-xs leading-relaxed relative">
-                            <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03]">
-                                <i class="fa-solid fa-plane text-[150px] text-gray-900 rotate-45"></i>
-                            </div>
-                            <div class="text-center border-b-2 border-double border-gray-400 pb-3">
-                                <h1 class="text-lg font-bold tracking-widest uppercase">형상 검증 및 부품 감항 보고서</h1>
-                                <p class="text-[9px] text-gray-500 mt-1 font-sans">AEROINSPECT MULTI-AGENT COMPLIANCE REPORT</p>
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-4 text-[10px] font-sans">
-                                <div>
-                                    <table class="w-full">
-                                        <tr><td class="font-bold w-16">장비 형태:</td><td class="text-gray-700">라이브 모형 촬영 카메라</td></tr>
-                                        <tr><td class="font-bold">기종 분류:</td><td class="text-gray-700">User Setup Scale-Jet Model</td></tr>
-                                    </table>
-                                </div>
-                                <div class="text-right">
-                                    <table class="w-full ml-auto">
-                                        <tr><td class="font-bold text-right w-20 pr-1.5">점검 일시:</td><td class="text-gray-700 text-left" id="r-date">--</td></tr>
-                                        <tr><td class="font-bold text-right pr-1.5">담당 정비사:</td><td class="text-gray-700 text-left" id="r-inspector">--</td></tr>
-                                        <tr><td class="font-bold text-right pr-1.5">최종 판정:</td><td class="text-left font-bold" id="r-result-badge">--</td></tr>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <div class="space-y-1.5 border-t border-gray-300 pt-3 font-sans">
-                                <h3 class="text-xs font-bold border-l-4 border-gray-800 pl-2">1. 종합 의견 및 분석 결과</h3>
-                                <p class="text-[11px] text-gray-600 leading-relaxed" id="r-summary-text">
-                                    기체 비교 판독 보고서가 빌드되지 않았습니다.
-                                </p>
-                            </div>
-
-                            <div class="space-y-1.5 font-sans">
-                                <h3 class="text-xs font-bold border-l-4 border-gray-800 pl-2">2. 이상 검출 형상 테이블</h3>
-                                <table class="w-full text-[9px] border-collapse border border-gray-300">
-                                    <thead class="bg-gray-100">
-                                        <tr>
-                                            <th class="border border-gray-300 px-2 py-1">ID</th>
-                                            <th class="border border-gray-300 px-2 py-1">정비부품명</th>
-                                            <th class="border border-gray-300 px-2 py-1">방향</th>
-                                            <th class="border border-gray-300 px-2 py-1">감지심각도</th>
-                                            <th class="border border-gray-300 px-2 py-1">자재 고유 번호(P/N)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="r-findings-table">
-                                        <tr>
-                                            <td colspan="5" class="border border-gray-300 px-2 py-3 text-center text-gray-400">데이터가 확보되지 않았습니다.</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div class="border-t border-gray-300 pt-3 text-[9px] text-gray-400 text-center font-sans italic">
-                                "본 보고서는 가상 데이터 기반 데모 산출물로, 실제 감항성 판단에 사용할 수 없습니다."
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- Footer Disclaimer -->
-    <footer class="border-t border-brand-border bg-gray-950 px-6 py-4 flex flex-col sm:flex-row justify-between items-center text-[11px] text-gray-500 gap-2 mt-auto">
-        <div>&copy; 2026 AeroInspect Multi-Agent System. 전용 감항 무결성 가드레일 탑재.</div>
-        <div class="flex space-x-4">
-            <span class="flex items-center"><span class="w-1.5 h-1.5 rounded-full bg-brand-cyan mr-1.5 animate-pulse"></span>Gemini Agent Pro</span>
-            <span class="flex items-center"><span class="w-1.5 h-1.5 rounded-full bg-brand-amber mr-1.5"></span>Deterministic Safety Guard</span>
         </div>
-    </footer>
+    </section>
 
-    <script>
-        // Simulated local parts catalog (mini-IPC)
-        const mockIPCLocal = {
-            "component_templates": [
-                {
-                    part_number: "ACFT-VTS-R-102",
-                    name_ko: "우측 수직꼬리날개",
-                    name_en: "Right Vertical Stabilizer Wing",
-                    catalog_side: "right",
-                    flight_critical: true,
-                    installation_steps: [
-                        "결속 브래킷 표면의 부식 및 리벳 체결 이격을 목시 확인하십시오.",
-                        "미익 고정 핀 어셈블리를 가이드 축에 슬라이드 결속합니다.",
-                        "M5 티타늄 고정 볼트 3개소를 35 in-lbs 드라이버로 체결하십시오.",
-                        "제어 와이어 및 가열 커넥터 결속 확인 후 절연 처리를 수행하십시오.",
-                        "미익 러더 제어면 범위 내 좌우 간섭 테스트 기동을 완료하고 기록을 확보하십시오."
-                    ],
-                    disposition_if_missing: "ground_aircraft",
-                    reference_docs: [{ doc: "02_tail_section.md", section: "SECTION 2.1" }]
-                },
-                {
-                    part_number: "ACFT-PYL-MSL-L",
-                    name_ko: "좌측 파일런 하부 미사일",
-                    name_en: "Left Pylon Auxiliary Missile",
-                    catalog_side: "left",
-                    flight_critical: false,
-                    installation_steps: [
-                        "윙 어댑터 파일런 레일의 그리스 오염 상태를 점검 및 클리닝하십시오.",
-                        "모의 런처 후크를 마운팅 슬롯에 완전히 슬라이드 피팅 결속합니다.",
-                        "전방 차폐용 접지 고정핀 핀-스틸 와이어를 통과해 고정하십시오.",
-                        "RBF(Remove Before Flight) 빨간 태그가 정렬되었는지 점검을 이행하십시오."
-                    ],
-                    disposition_if_missing: "install_before_flight",
-                    reference_docs: [{ doc: "03_wing_pylons.md", section: "SECTION 4.2" }]
-                }
-            ]
-        };
+    <!-- ───────── 에이전트 타임라인 ───────── -->
+    <section class="panel rounded-2xl px-5 md:px-7 py-5">
+        <div class="flex items-center justify-between mb-5">
+            <div class="flex items-center gap-2.5">
+                <i class="fa-solid fa-diagram-project text-slate-500 text-sm"></i>
+                <h2 class="text-[13px] font-bold tracking-wide text-slate-300">에이전트 파이프라인</h2>
+            </div>
+            <div id="pipeline-clock" class="text-[12px] font-mono text-slate-600">--:--</div>
+        </div>
 
-        // UI View State
-        let activeView = 'capture'; // 'capture' or 'analysis'
+        <div class="relative">
+            <div class="absolute top-[19px] left-[12.5%] right-[12.5%] h-[2px] bg-ink-500 rounded-full overflow-hidden">
+                <div id="rail-fill" class="h-full w-0 rounded-full"></div>
+            </div>
 
-        // Images data state
-        let baselineImgBase64 = null;
-        let inspectionImgBase64 = null;
+            <div class="relative grid grid-cols-4 gap-2">
+                <div class="agent-node flex flex-col items-center text-center gap-2" data-agent="vision" data-state="idle">
+                    <div class="node-dot w-10 h-10 rounded-full border border-ink-500 bg-ink-800 text-slate-600 flex items-center justify-center font-mono text-[12px] font-bold">01</div>
+                    <div class="space-y-0.5">
+                        <div class="node-name text-[12.5px] font-bold text-slate-500 transition-colors">VisionAgent</div>
+                        <div class="text-[11px] text-slate-600 hidden sm:block">다중 픽셀 대조 검출</div>
+                        <div class="node-state text-[10px] font-mono font-bold tracking-wider text-slate-700 transition-colors">READY</div>
+                    </div>
+                </div>
+                <div class="agent-node flex flex-col items-center text-center gap-2" data-agent="grounding" data-state="idle">
+                    <div class="node-dot w-10 h-10 rounded-full border border-ink-500 bg-ink-800 text-slate-600 flex items-center justify-center font-mono text-[12px] font-bold">02</div>
+                    <div class="space-y-0.5">
+                        <div class="node-name text-[12.5px] font-bold text-slate-500 transition-colors">GroundingAgent</div>
+                        <div class="text-[11px] text-slate-600 hidden sm:block">규격서 카탈로그 연동</div>
+                        <div class="node-state text-[10px] font-mono font-bold tracking-wider text-slate-700 transition-colors">READY</div>
+                    </div>
+                </div>
+                <div class="agent-node flex flex-col items-center text-center gap-2" data-agent="validator" data-state="idle">
+                    <div class="node-dot w-10 h-10 rounded-full border border-ink-500 bg-ink-800 text-slate-600 flex items-center justify-center font-mono text-[12px] font-bold">03</div>
+                    <div class="space-y-0.5">
+                        <div class="node-name text-[12.5px] font-bold text-slate-500 transition-colors">RuleValidator</div>
+                        <div class="text-[11px] text-slate-600 hidden sm:block">결정론적 무결성 통제</div>
+                        <div class="node-state text-[10px] font-mono font-bold tracking-wider text-slate-700 transition-colors">READY</div>
+                    </div>
+                </div>
+                <div class="agent-node flex flex-col items-center text-center gap-2" data-agent="reporter" data-state="idle">
+                    <div class="node-dot w-10 h-10 rounded-full border border-ink-500 bg-ink-800 text-slate-600 flex items-center justify-center font-mono text-[12px] font-bold">04</div>
+                    <div class="space-y-0.5">
+                        <div class="node-name text-[12.5px] font-bold text-slate-500 transition-colors">ReportAgent</div>
+                        <div class="text-[11px] text-slate-600 hidden sm:block">감항 보고서 생성</div>
+                        <div class="node-state text-[10px] font-mono font-bold tracking-wider text-slate-700 transition-colors">READY</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
-        // Webcam stream states
-        let streams = {
-            baseline: null,
-            inspection: null
-        };
+    <!-- ───────── 상세 덱 ───────── -->
+    <section class="panel rounded-2xl overflow-hidden">
+        <div class="flex border-b border-white/[.07] bg-black/25 text-[12px]">
+            <button onclick="switchTab('vision')" id="tab-btn-vision"
+                    class="relative flex-1 px-4 py-3.5 font-bold tracking-wide text-focus border-b-2 border-focus flex items-center justify-center gap-2">
+                <i class="fa-solid fa-eye text-[11px]"></i><span>비전 검출</span>
+            </button>
+            <button onclick="switchTab('grounding')" id="tab-btn-grounding"
+                    class="relative flex-1 px-4 py-3.5 font-bold tracking-wide text-slate-500 hover:text-slate-300 border-b-2 border-transparent flex items-center justify-center gap-2">
+                <i class="fa-solid fa-book text-[11px]"></i><span>부품 규격서</span>
+            </button>
+            <button onclick="switchTab('validator')" id="tab-btn-validator"
+                    class="relative flex-1 px-4 py-3.5 font-bold tracking-wide text-slate-500 hover:text-slate-300 border-b-2 border-transparent flex items-center justify-center gap-2">
+                <i class="fa-solid fa-shield-halved text-[11px]"></i><span>무결성 검증</span>
+            </button>
+            <button onclick="switchTab('report')" id="tab-btn-report"
+                    class="relative flex-1 px-4 py-3.5 font-bold tracking-wide text-slate-500 hover:text-slate-300 border-b-2 border-transparent flex items-center justify-center gap-2">
+                <i class="fa-solid fa-file-contract text-[11px]"></i><span>감항 보고서</span>
+            </button>
+            <button onclick="switchTab('log')" id="tab-btn-log"
+                    class="relative px-4 py-3.5 font-bold tracking-wide text-slate-500 hover:text-slate-300 border-b-2 border-transparent hidden md:flex items-center justify-center gap-2">
+                <i class="fa-solid fa-terminal text-[11px]"></i><span>로그</span>
+            </button>
+        </div>
 
-        // Manual canvas interaction coordinates
-        let drawnBBox = null;
-        let isDrawing = false;
-        let startX, startY;
+        <div class="p-5 md:p-6 min-h-[320px]">
 
-        window.onload = function() {
-            // Check storage for saved API Keys
-            const savedKey = sessionStorage.getItem('gemini_api_key');
-            if (savedKey) {
-                document.getElementById('gemini-key').value = savedKey;
-                validateAPIKeyStatus(savedKey);
-            }
-            initInteractiveCanvas();
-        };
+            <!-- 비전 -->
+            <div id="pane-vision" class="pane grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div class="lg:col-span-7 space-y-3.5">
+                    <div class="text-[11px] font-bold tracking-[.12em] text-slate-500 uppercase">검출 판정 데이터</div>
+                    <div class="rounded-lg border border-white/[.07] overflow-hidden bg-black/25">
+                        <table class="w-full text-left text-[12.5px]">
+                            <thead class="bg-white/[.03] text-slate-500 text-[10.5px] tracking-wider uppercase">
+                            <tr>
+                                <th class="px-4 py-2.5 font-bold">ID</th>
+                                <th class="px-4 py-2.5 font-bold">분류</th>
+                                <th class="px-4 py-2.5 font-bold">부품</th>
+                                <th class="px-4 py-2.5 font-bold">방향</th>
+                                <th class="px-4 py-2.5 font-bold text-right">신뢰도</th>
+                            </tr>
+                            </thead>
+                            <tbody id="vision-tbody">
+                            <tr><td colspan="5" class="px-4 py-10 text-center text-slate-600 text-[12px]">점검 개시 대기 중</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-3.5 rounded-lg bg-black/25 border border-white/[.07] space-y-1.5">
+                        <div class="text-[11px] font-bold tracking-wider text-slate-500 uppercase">판정 근거</div>
+                        <p id="vision-evidence" class="text-[12.5px] text-slate-400 leading-relaxed">분석 전 대기 상태입니다.</p>
+                    </div>
+                </div>
+                <div class="lg:col-span-5 space-y-2.5">
+                    <div class="text-[11px] font-bold tracking-[.12em] text-slate-500 uppercase">구조화 응답 (JSON)</div>
+                    <pre id="vision-json" class="bg-black/50 rounded-lg border border-white/[.07] p-4 text-[11.5px] leading-relaxed font-mono text-focus/85 overflow-auto h-[268px]">{}</pre>
+                </div>
+            </div>
 
-        document.getElementById('gemini-key').addEventListener('input', function(e) {
-            const key = e.target.value.trim();
-            sessionStorage.setItem('gemini_api_key', key);
-            validateAPIKeyStatus(key);
+            <!-- 규격서 -->
+            <div id="pane-grounding" class="pane hidden space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-white/[.07]">
+                    <div>
+                        <div class="text-[13px] font-bold text-white">부품 규격서(mini-IPC) 연계 결과</div>
+                        <div class="text-[12px] text-slate-500 mt-0.5">정식 등록명 · P/N · 감항 등급 · 재장착 절차 자동 조회</div>
+                    </div>
+                    <div id="grounding-badge"></div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="rounded-lg bg-black/25 border border-white/[.07] p-4 space-y-3 text-[12.5px]">
+                        <div class="flex justify-between gap-3 border-b border-white/[.05] pb-2.5">
+                            <span class="text-slate-500">부품 정식 등록명</span>
+                            <span class="font-semibold text-white text-right" id="g-name">—</span>
+                        </div>
+                        <div class="flex justify-between gap-3 border-b border-white/[.05] pb-2.5">
+                            <span class="text-slate-500">Part Number</span>
+                            <span class="font-mono font-bold text-slate-200" id="g-pn">—</span>
+                        </div>
+                        <div class="flex justify-between gap-3 border-b border-white/[.05] pb-2.5">
+                            <span class="text-slate-500">감항성 등급</span>
+                            <span class="font-bold text-right" id="g-critical">—</span>
+                        </div>
+                        <div class="flex justify-between gap-3 border-b border-white/[.05] pb-2.5">
+                            <span class="text-slate-500">누락 시 조치</span>
+                            <span class="font-bold text-right" id="g-disposition">—</span>
+                        </div>
+                        <div class="space-y-2 pt-1">
+                            <div class="text-[11px] font-bold tracking-wider text-slate-500 uppercase">출처 인용</div>
+                            <div id="g-citations" class="text-[12px] text-slate-600">문서 참조 대기 중</div>
+                        </div>
+                    </div>
+                    <div class="rounded-lg bg-black/25 border border-white/[.07] p-4 space-y-2.5">
+                        <div class="text-[11px] font-bold tracking-wider text-slate-500 uppercase flex items-center gap-2">
+                            <i class="fa-solid fa-wrench text-slate-600"></i>재장착 시방서 절차
+                        </div>
+                        <ol id="g-steps" class="space-y-2 text-[12.5px] text-slate-500 leading-relaxed">
+                            <li>대조 절차 진행 시 규격서 데이터가 파싱됩니다.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 무결성 -->
+            <div id="pane-validator" class="pane hidden space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-white/[.07]">
+                    <div>
+                        <div class="text-[13px] font-bold text-white">결정론적 무결성 통제 (Deterministic Guardrail)</div>
+                        <div class="text-[12px] text-slate-500 mt-0.5">AI 판단을 규칙 기반으로 교차 검증하여 오탐을 차단합니다</div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-5">
+                    <div id="val-box" class="md:col-span-2 rounded-lg bg-black/25 border border-white/[.07] p-6 flex flex-col items-center justify-center text-center gap-3">
+                        <div class="w-14 h-14 rounded-full bg-white/[.04] flex items-center justify-center text-2xl text-slate-700">
+                            <i class="fa-solid fa-shield"></i>
+                        </div>
+                        <div class="text-[13px] font-bold text-slate-500">검증 진행 전</div>
+                    </div>
+                    <div class="md:col-span-3 space-y-2.5">
+                        <div class="text-[11px] font-bold tracking-wider text-slate-500 uppercase">탐지된 감항 위반 플래그</div>
+                        <div id="val-flags" class="space-y-2.5 max-h-[260px] overflow-y-auto pr-1">
+                            <div class="p-4 rounded-lg bg-black/25 border border-white/[.07] text-center text-slate-600 text-[12px]">
+                                검사 실행 후 규칙 기반 대조가 연산됩니다.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 보고서 -->
+            <div id="pane-report" class="pane hidden space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-white/[.07]">
+                    <div class="text-[13px] font-bold text-white">자동 생성 감항 보고서</div>
+                    <button onclick="copyReport()"
+                            class="px-3.5 py-2 rounded-lg bg-white/[.06] hover:bg-white/[.11] border border-white/10 text-[12px] font-semibold text-slate-200">
+                        <i class="fa-solid fa-copy mr-1.5 text-slate-400"></i>클립보드 복사
+                    </button>
+                </div>
+
+                <div class="bg-white text-slate-900 rounded-lg p-7 max-w-3xl mx-auto space-y-5 max-h-[380px] overflow-y-auto text-[12px] leading-relaxed relative shadow-2xl">
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[.035]">
+                        <i class="fa-solid fa-plane text-[170px] text-slate-900 rotate-45"></i>
+                    </div>
+                    <div class="text-center border-b-2 border-double border-slate-400 pb-3.5 relative">
+                        <div class="text-[17px] font-black tracking-[.12em]">형상 검증 및 부품 감항 보고서</div>
+                        <div class="text-[9.5px] text-slate-500 mt-1 tracking-widest">AEROINSPECT MULTI-AGENT COMPLIANCE REPORT</div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-5 text-[11px] relative">
+                        <table class="w-full">
+                            <tr><td class="font-bold w-24 py-0.5">기종 분류</td><td class="text-slate-700" id="r-model">—</td></tr>
+                            <tr><td class="font-bold py-0.5">점검 부위</td><td class="text-slate-700" id="r-section">—</td></tr>
+                            <tr><td class="font-bold py-0.5">획득 방식</td><td class="text-slate-700" id="r-source">—</td></tr>
+                        </table>
+                        <table class="w-full">
+                            <tr><td class="font-bold w-24 py-0.5">점검 일시</td><td class="text-slate-700" id="r-date">—</td></tr>
+                            <tr><td class="font-bold py-0.5">담당 정비사</td><td class="text-slate-700" id="r-inspector">—</td></tr>
+                            <tr><td class="font-bold py-0.5">최종 판정</td><td class="font-black" id="r-verdict">—</td></tr>
+                        </table>
+                    </div>
+
+                    <div class="space-y-1.5 border-t border-slate-300 pt-3.5 relative">
+                        <div class="text-[12.5px] font-bold border-l-4 border-slate-800 pl-2">1. 종합 의견</div>
+                        <p class="text-[11.5px] text-slate-700 leading-relaxed" id="r-summary">보고서가 아직 생성되지 않았습니다.</p>
+                    </div>
+
+                    <div class="space-y-1.5 relative">
+                        <div class="text-[12.5px] font-bold border-l-4 border-slate-800 pl-2">2. 이상 검출 형상</div>
+                        <table class="w-full text-[10.5px] border-collapse border border-slate-300">
+                            <thead class="bg-slate-100">
+                            <tr>
+                                <th class="border border-slate-300 px-2 py-1.5">ID</th>
+                                <th class="border border-slate-300 px-2 py-1.5">부품명</th>
+                                <th class="border border-slate-300 px-2 py-1.5">방향</th>
+                                <th class="border border-slate-300 px-2 py-1.5">심각도</th>
+                                <th class="border border-slate-300 px-2 py-1.5">P/N</th>
+                            </tr>
+                            </thead>
+                            <tbody id="r-findings">
+                            <tr><td colspan="5" class="border border-slate-300 px-2 py-3 text-center text-slate-400">데이터 없음</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="border-t border-slate-300 pt-3 text-[9.5px] text-slate-400 text-center italic relative">
+                        본 보고서는 데모 목적의 산출물로, 실제 감항성 판단에 사용할 수 없습니다.
+                    </div>
+                </div>
+            </div>
+
+            <!-- 로그 -->
+            <div id="pane-log" class="pane hidden">
+                <div id="terminal" class="bg-black/60 rounded-lg border border-white/[.07] p-4 font-mono text-[11.5px] leading-relaxed text-slate-400 h-[300px] overflow-y-auto space-y-1">
+                    <div><span class="text-slate-600">[SYSTEM]</span> 터미널 준비 완료. 점검 대상 등록을 대기합니다.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer class="relative z-10 border-t border-white/[.07] px-6 py-3.5 mt-2">
+    <div class="max-w-[1500px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-600">
+        <div>&copy; 2026 AeroInspect · 결정론적 감항 무결성 가드레일 탑재</div>
+        <div id="mode-note" class="flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>추론 엔진: 내장 시뮬레이션
+        </div>
+    </div>
+</footer>
+
+<!-- ══════════════════════════════════════════════════════════════
+     최종 판정 오버레이
+═══════════════════════════════════════════════════════════════ -->
+<div id="verdict" class="fixed inset-0 z-[100] hidden items-center justify-center px-6">
+    <div class="absolute inset-0 bg-ink-900/92 backdrop-blur-lg"></div>
+    <div class="relative text-center max-w-3xl w-full">
+        <div id="verdict-card" class="space-y-6">
+            <div id="verdict-icon" class="w-24 h-24 mx-auto rounded-full flex items-center justify-center text-5xl">
+                <i class="fa-solid fa-ban"></i>
+            </div>
+
+            <div class="space-y-2">
+                <div id="verdict-title" class="text-[clamp(56px,11vw,132px)] font-black leading-[.9] tracking-tight">NO-GO</div>
+                <div id="verdict-sub" class="text-[clamp(15px,2.2vw,24px)] font-bold tracking-[.3em]">비행 금지 · GROUNDED</div>
+            </div>
+
+            <div id="verdict-rule" class="mx-auto h-[3px] max-w-md"></div>
+
+            <div class="space-y-3">
+                <div id="verdict-part" class="text-[clamp(17px,2.6vw,26px)] font-bold text-white">—</div>
+                <div id="verdict-reason" class="text-[13.5px] text-slate-400 leading-relaxed max-w-xl mx-auto">—</div>
+            </div>
+
+            <div id="verdict-meta" class="flex items-center justify-center gap-2.5 flex-wrap"></div>
+
+            <div class="flex items-center justify-center gap-3 pt-3">
+                <button onclick="closeVerdict('report')"
+                        class="px-6 py-3.5 rounded-lg bg-white text-ink-900 font-extrabold text-[13.5px] tracking-wide hover:bg-slate-200">
+                    <i class="fa-solid fa-file-contract mr-2"></i>감항 보고서 확인
+                </button>
+                <button onclick="closeVerdict()"
+                        class="px-5 py-3.5 rounded-lg border border-white/15 bg-white/[.04] text-slate-300 font-semibold text-[13px] hover:bg-white/[.09]">
+                    닫기
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     오퍼레이터 패널 (~ 키)
+     데모 조작부는 전부 여기로 격리한다. 무대에는 절대 노출하지 않는다.
+═══════════════════════════════════════════════════════════════ -->
+<aside id="operator" class="fixed top-0 right-0 bottom-0 w-[360px] z-[90] bg-ink-800/97 backdrop-blur-2xl border-l border-white/10 overflow-y-auto">
+    <div class="p-5 space-y-5">
+        <div class="flex items-center justify-between pb-3.5 border-b border-white/10">
+            <div>
+                <div class="text-[13px] font-bold text-white tracking-wide">오퍼레이터 패널</div>
+                <div class="text-[11px] text-slate-500 mt-0.5">시연 전 설정 · 무대에 노출되지 않음</div>
+            </div>
+            <button onclick="toggleOperator()" class="w-8 h-8 rounded-lg border border-white/10 text-slate-500 hover:text-white">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+        </div>
+
+        <div class="space-y-2.5">
+            <div class="text-[11px] font-bold tracking-wider text-slate-500 uppercase">1. 기준 형상 사전 로드</div>
+            <p class="text-[11px] text-slate-600 leading-relaxed">
+                DB 자동 매칭을 시뮬레이션합니다. 시연 전에 미리 등록해 두면, 무대에서는 점검 사진 1장만으로 기준 형상이 자동 조회됩니다.
+            </p>
+            <button onclick="pickFile('baseline')"
+                    class="w-full py-2.5 rounded-lg border border-ok/30 bg-ok/[.07] text-ok text-[12px] font-bold hover:bg-ok/[.14]">
+                <i class="fa-solid fa-cloud-arrow-down mr-1.5"></i>기준 형상 이미지 등록
+            </button>
+            <div id="op-baseline-status" class="text-[11px] text-slate-600 text-center">미등록</div>
+        </div>
+
+        <div class="space-y-2.5 pt-4 border-t border-white/[.07]">
+            <div class="text-[11px] font-bold tracking-wider text-slate-500 uppercase">2. 식별 결과 문구</div>
+            <label class="block space-y-1">
+                <span class="text-[11px] text-slate-500">기종</span>
+                <input id="op-model" value="F-16C Block 52 (1/32 Scale Model)"
+                       class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-[12px] text-slate-200 focus:outline-none focus:border-focus">
+            </label>
+            <label class="block space-y-1">
+                <span class="text-[11px] text-slate-500">부위</span>
+                <input id="op-section" value="수직미익 / 후방 동체"
+                       class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-[12px] text-slate-200 focus:outline-none focus:border-focus">
+            </label>
+            <label class="block space-y-1">
+                <span class="text-[11px] text-slate-500">촬영 각도</span>
+                <input id="op-angle" value="우현 후방 3/4 뷰"
+                       class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-[12px] text-slate-200 focus:outline-none focus:border-focus">
+            </label>
+        </div>
+
+        <div class="space-y-2.5 pt-4 border-t border-white/[.07]">
+            <div class="text-[11px] font-bold tracking-wider text-slate-500 uppercase">3. 추론 엔진</div>
+            <label class="block space-y-1">
+                <span class="text-[11px] text-slate-500">Gemini API Key <span class="text-slate-700">(비우면 시뮬레이션)</span></span>
+                <div class="flex items-center gap-2">
+                    <input type="password" id="op-key" placeholder="AIzaSy..."
+                           class="flex-1 bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-[12px] font-mono text-slate-200 focus:outline-none focus:border-focus">
+                    <span id="op-key-dot" class="w-2.5 h-2.5 rounded-full bg-slate-600 shrink-0"></span>
+                </div>
+            </label>
+            <label class="block space-y-1">
+                <span class="text-[11px] text-slate-500">판독 모델</span>
+                <select id="op-vision-model"
+                        class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-[12px] text-slate-200 focus:outline-none focus:border-focus">
+                    <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                    <option value="gemini-2.5-pro">gemini-2.5-pro (고성능)</option>
+                </select>
+            </label>
+        </div>
+
+        <div class="space-y-3 pt-4 border-t border-white/[.07]">
+            <div class="text-[11px] font-bold tracking-wider text-slate-500 uppercase">4. 검증 규칙</div>
+            <div class="space-y-1.5">
+                <div class="flex justify-between text-[11px]">
+                    <span class="text-slate-500">신뢰도 임계값</span>
+                    <span class="font-mono text-focus" id="op-th-val">0.60</span>
+                </div>
+                <input type="range" id="op-th" min="0.10" max="0.95" step="0.05" value="0.60" class="w-full">
+            </div>
+            <label class="block space-y-1">
+                <span class="text-[11px] text-slate-500">담당 정비사</span>
+                <input id="op-inspector" value="Aero Tech (정비팀)"
+                       class="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-[12px] text-slate-200 focus:outline-none focus:border-focus">
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer">
+                <input type="checkbox" id="op-side-mismatch" class="rounded bg-black/40 border-white/20 text-focus focus:ring-0 cursor-pointer">
+                <span class="text-[11.5px] text-slate-400">방향 불일치 규칙 강제 (테스트)</span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer">
+                <input type="checkbox" id="op-remap" onchange="toggleRemap(this.checked)" class="rounded bg-black/40 border-white/20 text-focus focus:ring-0 cursor-pointer">
+                <span class="text-[11.5px] text-slate-400">드래그 결함 영역 재지정 허용</span>
+            </label>
+        </div>
+
+        <div class="space-y-3 pt-4 border-t border-white/[.07]">
+            <div class="text-[11px] font-bold tracking-wider text-slate-500 uppercase">5. 연출</div>
+            <label class="flex items-center gap-2.5 cursor-pointer">
+                <input type="checkbox" id="op-autorun" checked class="rounded bg-black/40 border-white/20 text-focus focus:ring-0 cursor-pointer">
+                <span class="text-[11.5px] text-slate-400">식별·매칭 자동 진행</span>
+            </label>
+            <div class="space-y-1.5">
+                <div class="flex justify-between text-[11px]">
+                    <span class="text-slate-500">연출 속도</span>
+                    <span class="font-mono text-focus" id="op-speed-val">1.0×</span>
+                </div>
+                <input type="range" id="op-speed" min="0.5" max="2" step="0.1" value="1" class="w-full">
+            </div>
+            <p class="text-[10.5px] text-slate-600 leading-relaxed pt-1">
+                단축키 — <span class="font-mono text-slate-500">~</span> 패널 토글 ·
+                <span class="font-mono text-slate-500">Space</span> 점검 개시 ·
+                <span class="font-mono text-slate-500">R</span> 초기화 ·
+                <span class="font-mono text-slate-500">Esc</span> 판정 닫기
+            </p>
+        </div>
+    </div>
+</aside>
+
+<input type="file" id="file-inspection" accept="image/*" class="hidden">
+<input type="file" id="file-baseline" accept="image/*" class="hidden">
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   mini-IPC 카탈로그 (가상 부품 규격서)
+═══════════════════════════════════════════════════════════════ */
+const IPC = [
+    {
+        part_number: "ACFT-VTS-R-102",
+        name_ko: "우측 수직꼬리날개",
+        name_en: "Right Vertical Stabilizer",
+        catalog_side: "right",
+        flight_critical: true,
+        disposition_if_missing: "ground_aircraft",
+        installation_steps: [
+            "결속 브래킷 표면의 부식 및 리벳 체결 이격을 목시 확인하십시오.",
+            "미익 고정 핀 어셈블리를 가이드 축에 슬라이드 결속합니다.",
+            "M5 티타늄 고정 볼트 3개소를 35 in-lbs 토크로 체결하십시오.",
+            "제어 와이어 및 가열 커넥터 결속 확인 후 절연 처리를 수행하십시오.",
+            "러더 제어면 범위 내 좌우 간섭 테스트 기동을 완료하고 기록을 확보하십시오."
+        ],
+        reference_docs: [{ doc: "02_tail_section.md", section: "SECTION 2.1" }]
+    },
+    {
+        part_number: "ACFT-PYL-MSL-L",
+        name_ko: "좌측 파일런 하부 미사일",
+        name_en: "Left Pylon Auxiliary Missile",
+        catalog_side: "left",
+        flight_critical: false,
+        disposition_if_missing: "install_before_flight",
+        installation_steps: [
+            "윙 어댑터 파일런 레일의 그리스 오염 상태를 점검 및 클리닝하십시오.",
+            "모의 런처 후크를 마운팅 슬롯에 완전히 슬라이드 피팅 결속합니다.",
+            "전방 차폐용 접지 고정핀을 핀-스틸 와이어로 통과 고정하십시오.",
+            "RBF(Remove Before Flight) 태그 정렬 상태를 점검하십시오."
+        ],
+        reference_docs: [{ doc: "03_wing_pylons.md", section: "SECTION 4.2" }]
+    }
+];
+
+const DISPOSITION_LABEL = {
+    ground_aircraft:       "GROUND AIRCRAFT · 비행 불허",
+    install_before_flight: "INSTALL BEFORE FLIGHT · 이륙 전 재장착"
+};
+
+const AGENTS = ['vision', 'grounding', 'validator', 'reporter'];
+
+/* ═══════════════════════════════════════════════════════════════
+   상태
+═══════════════════════════════════════════════════════════════ */
+const S = {
+    baseline: null,     // dataURL
+    inspection: null,   // dataURL
+    source: null,       // 'camera' | 'file'
+    stream: null,
+    drawnBBox: null,    // [ymin, xmin, ymax, xmax] — 전 경로 단일 규약
+    lastDefect: null,
+    running: false,
+    t0: 0,
+    clockTimer: null,
+};
+
+const el = id => document.getElementById(id);
+const speed = () => parseFloat(el('op-speed').value) || 1;
+const wait = ms => new Promise(r => setTimeout(r, ms / speed()));
+
+/* ═══════════════════════════════════════════════════════════════
+   부팅
+═══════════════════════════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', () => {
+    const savedKey = sessionStorage.getItem('gemini_api_key');
+    if (savedKey) { el('op-key').value = savedKey; syncKeyStatus(savedKey); }
+
+    el('file-inspection').addEventListener('change', e => readFile(e.target, 'inspection'));
+    el('file-baseline').addEventListener('change', e => readFile(e.target, 'baseline'));
+
+    el('op-key').addEventListener('input', e => {
+        const k = e.target.value.trim();
+        sessionStorage.setItem('gemini_api_key', k);
+        syncKeyStatus(k);
+    });
+    el('op-th').addEventListener('input', e => el('op-th-val').textContent = parseFloat(e.target.value).toFixed(2));
+    el('op-speed').addEventListener('input', e => el('op-speed-val').textContent = parseFloat(e.target.value).toFixed(1) + '×');
+
+    initDropzone();
+    initDivider();
+    initRemap();
+    initKeys();
+
+    window.addEventListener('resize', () => { if (S.lastDefect) placeBBox(S.lastDefect.bbox_inspection); });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   입력
+═══════════════════════════════════════════════════════════════ */
+function pickFile(kind) { el('file-' + kind).click(); }
+
+function readFile(input, kind) {
+    const f = input.files && input.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = e => ingest(e.target.result, kind, 'file');
+    r.readAsDataURL(f);
+    input.value = '';
+}
+
+function initDropzone() {
+    const stage = el('stage');
+    ['dragenter', 'dragover'].forEach(ev => stage.addEventListener(ev, e => {
+        e.preventDefault();
+        if (!S.inspection) stage.classList.add('ring-2', 'ring-focus/50');
+    }));
+    ['dragleave', 'drop'].forEach(ev => stage.addEventListener(ev, e => {
+        e.preventDefault();
+        stage.classList.remove('ring-2', 'ring-focus/50');
+    }));
+    stage.addEventListener('drop', e => {
+        const f = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (!f || !f.type.startsWith('image/')) return;
+        const r = new FileReader();
+        r.onload = ev => ingest(ev.target.result, 'inspection', 'file');
+        r.readAsDataURL(f);
+    });
+    el('dropzone').addEventListener('click', () => pickFile('inspection'));
+}
+
+async function startCamera() {
+    const cam = el('cam');
+    try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('이 브라우저 또는 연결에서는 카메라 API를 사용할 수 없습니다.');
+        }
+        S.stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
         });
+        cam.srcObject = S.stream;
+        cam.classList.remove('hidden');
+        el('shutter').classList.remove('hidden');
+        el('dropzone').classList.add('hidden');
+        log('[CAPTURE] 카메라 스트림 연결됨.');
+    } catch (err) {
+        alert('카메라 연동 실패\n\n사유: ' + err.message +
+              '\n\n모바일에서 테스트 중이라면 HTTP(로컬 IP)가 아닌 HTTPS 환경이어야 카메라 권한이 허용됩니다. ngrok 등 터널링 툴을 사용하십시오.');
+        stopCamera();
+    }
+}
 
-        function validateAPIKeyStatus(key) {
-            const indicator = document.getElementById('api-status-indicator');
-            const badge = document.getElementById('demo-mode-badge');
-            if (key.startsWith('AIzaSy')) {
-                indicator.className = "w-2.5 h-2.5 rounded-full bg-brand-green glow-green";
-                badge.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-brand-green mr-1.5 animate-pulse"></span>Gemini 실시간 연동 모드`;
-                updateTerminalLog("[SYSTEM] Gemini API Key detected. Ready for actual Multimodal Analysis.");
-            } else if (key === "") {
-                indicator.className = "w-2.5 h-2.5 rounded-full bg-gray-500";
-                badge.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-amber-500 mr-1.5"></span>시뮬레이터 모드 작동 중`;
-            } else {
-                indicator.className = "w-2.5 h-2.5 rounded-full bg-brand-red glow-red";
-                badge.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-brand-red mr-1.5"></span>잘못된 API Key 규격`;
-            }
-        }
+function stopCamera() {
+    if (S.stream) { S.stream.getTracks().forEach(t => t.stop()); S.stream = null; }
+    el('cam').srcObject = null;
+    el('cam').classList.add('hidden');
+    el('shutter').classList.add('hidden');
+    if (!S.inspection) el('dropzone').classList.remove('hidden');
+}
 
-        // View Toggling logic
-        function switchMainView(viewId) {
-            activeView = viewId;
-            
-            const viewCapture = document.getElementById('view-capture');
-            const viewAnalysis = document.getElementById('view-analysis');
-            const navBtnCapture = document.getElementById('nav-btn-capture');
-            const navBtnAnalysis = document.getElementById('nav-btn-analysis');
+function captureFrame() {
+    const cam = el('cam');
+    const c = document.createElement('canvas');
+    c.width = cam.videoWidth; c.height = cam.videoHeight;
+    c.getContext('2d').drawImage(cam, 0, 0, c.width, c.height);
+    const data = c.toDataURL('image/jpeg', 0.92);
+    stopCamera();
+    ingest(data, 'inspection', 'camera');
+}
 
-            // Terminate any running webcams when leaving capture screen
-            if (viewId !== 'capture') {
-                stopWebcamFeed('baseline');
-                stopWebcamFeed('inspection');
-            }
+/* ═══════════════════════════════════════════════════════════════
+   ACT 1-2 — 식별 → 기준 매칭 (자동 체이닝)
+═══════════════════════════════════════════════════════════════ */
+function ingest(dataURL, kind, source) {
+    if (kind === 'baseline') {
+        S.baseline = dataURL;
+        el('img-baseline').src = dataURL;
+        el('op-baseline-status').innerHTML = '<span class="text-ok font-bold">등록 완료 · DB 매칭 준비</span>';
+        log('[REFERENCE_DB] 기준 형상 사전 로드 완료.');
+        return;
+    }
 
-            if (viewId === 'capture') {
-                viewCapture.classList.remove('hidden');
-                viewAnalysis.classList.add('hidden');
-                
-                navBtnCapture.className = "px-3 py-1.5 rounded-md font-semibold transition bg-brand-cyan text-black";
-                navBtnAnalysis.className = "px-3 py-1.5 rounded-md font-semibold transition text-gray-400 hover:text-white";
-            } else {
-                viewCapture.classList.add('hidden');
-                viewAnalysis.classList.remove('hidden');
-                
-                navBtnCapture.className = "px-3 py-1.5 rounded-md font-semibold transition text-gray-400 hover:text-white";
-                navBtnAnalysis.className = "px-3 py-1.5 rounded-md font-semibold transition bg-brand-cyan text-black";
+    S.inspection = dataURL;
+    S.source = source;
+    el('img-inspection').src = dataURL;
+    el('dropzone').classList.add('hidden');
+    el('stage').classList.remove('stage-idle');
+    el('btn-reset').classList.remove('hidden');
+    setWipe(100);
+    log('[CAPTURE] 점검 대상 프레임 획득 (' + (source === 'camera' ? '라이브 카메라' : '파일 등록') + ').');
 
-                // Map newly acquired images onto the Analysis Screen immediately
-                document.getElementById('img-analysis-baseline').src = baselineImgBase64;
-                document.getElementById('img-analysis-inspection').src = inspectionImgBase64;
-                
-                // Reset bounding box overlay on change
-                document.getElementById('bbox-overlay-analysis').classList.add('hidden');
-            }
-        }
+    if (el('op-autorun').checked) actIdentify();
+}
 
-        function triggerFileSelector(targetType) {
-            document.getElementById(`uploader-${targetType}`).click();
-        }
+async function actIdentify() {
+    setPhase('identify');
+    setStatus('IDENTIFYING', 'focus');
+    el('stage-hint').textContent = 'AI가 기종·부위·각도를 식별하는 중입니다';
+    el('stage').classList.add('scanning');
+    log('<b>[IdentifyAgent]</b> 기체 형상 특징점 추출 중...');
 
-        function handleFileProcessing(input, targetType) {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                applyImageResource(e.target.result, targetType);
-            };
-            reader.readAsDataURL(file);
-        }
+    const chips = [
+        { icon: 'fa-plane',        label: '기종',      value: () => el('op-model').value   },
+        { icon: 'fa-location-dot', label: '부위',      value: () => el('op-section').value },
+        { icon: 'fa-camera',       label: '촬영 각도', value: () => el('op-angle').value   },
+    ];
 
-        async function toggleWebcamStream(targetType) {
-            const video = document.getElementById(`video-feed-${targetType}`);
-            const fallback = document.getElementById(`ui-fallback-${targetType}`);
-            const btnCamera = document.getElementById(`btn-camera-${targetType}`);
-            const shutter = document.getElementById(`btn-shutter-overlay-${targetType}`);
-            const preview = document.getElementById(`view-captured-${targetType}`);
+    el('id-chips').innerHTML = '';
+    for (const c of chips) {
+        await wait(560);
+        const node = document.createElement('div');
+        node.className = 'chip-in flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-ink-900/90 border border-focus/25 backdrop-blur';
+        node.innerHTML =
+            '<i class="fa-solid ' + c.icon + ' text-focus text-[10px]"></i>' +
+            '<span class="text-[10.5px] text-slate-500 font-semibold">' + c.label + '</span>' +
+            '<span class="text-[11.5px] font-bold text-white">' + escapeHTML(c.value()) + '</span>';
+        el('id-chips').appendChild(node);
+        log('<b>[IdentifyAgent]</b> ' + c.label + ' 확정 → <span class="text-focus">' + escapeHTML(c.value()) + '</span>');
+    }
 
-            // If webcam stream is already active, close it
-            if (streams[targetType]) {
-                stopWebcamFeed(targetType);
-                return;
-            }
+    await wait(420);
+    el('stage').classList.remove('scanning');
+    actRetrieve();
+}
 
-            // Clean up previous captured view
-            preview.classList.add('hidden');
-            fallback.classList.add('hidden');
-            video.classList.remove('hidden');
-            shutter.classList.remove('hidden');
-            
-            btnCamera.innerHTML = `<i class="fa-solid fa-video-slash text-brand-red"></i> <span>카메라 끄기</span>`;
+async function actRetrieve() {
+    setPhase('retrieve');
+    setStatus('RETRIEVING', 'focus');
+    el('stage-hint').textContent = '공인 기준 형상 DB를 조회하는 중입니다';
+    log('<b>[ReferenceDB]</b> 식별 메타데이터로 기준 형상 조회 중...');
 
-            try {
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error("보안 연결(HTTPS) 환경이 아니거나 브라우저에서 카메라 API를 지원하지 않습니다.");
-                }
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-                });
-                video.srcObject = stream;
-                streams[targetType] = stream;
+    await wait(760);
 
-                // If aligning inspection camera and baseline exists, show ghost overlay layer inside the box!
-                if (targetType === 'inspection' && baselineImgBase64) {
-                    const ghost = document.getElementById('layer-ghost-overlay');
-                    ghost.src = baselineImgBase64;
-                    ghost.classList.remove('hidden');
-                    adjustGhostTransparency(document.getElementById('ghost-slider').value);
-                }
-            } catch (err) {
-                console.error("Camera connection failed: ", err);
-                alert("⚠️ 카메라 장치 연동 실패\n\n사유: " + err.message + "\n\n💡 참고: 모바일 기기로 테스트 중이시라면, 동일한 Wi-Fi 상이라도 HTTP(로컬 IP)가 아닌 HTTPS(보안 터널링) 환경에서 접속해야 모바일 브라우저가 카메라 권한을 허용합니다.\nngrok이나 localtunnel 같은 터널링 툴을 사용해 주세요.");
-                stopWebcamFeed(targetType);
-            }
-        }
+    if (!S.baseline) {
+        // 시연 실패 방지 장치. 리허설된 시연에서는 도달하지 않는다.
+        setStatus('NO BASELINE', 'warn');
+        el('stage-hint').innerHTML = '<span class="text-warn font-semibold">기준 형상이 DB에 없습니다 — 오퍼레이터 패널에서 사전 로드하십시오</span>';
+        log('<b>[ReferenceDB]</b> <span class="text-warn">기준 형상 미등록.</span> 오퍼레이터 패널에서 사전 로드가 필요합니다.');
+        if (!el('operator').classList.contains('open')) toggleOperator();
+        return;
+    }
 
-        function stopWebcamFeed(targetType) {
-            const video = document.getElementById(`video-feed-${targetType}`);
-            const fallback = document.getElementById(`ui-fallback-${targetType}`);
-            const btnCamera = document.getElementById(`btn-camera-${targetType}`);
-            const shutter = document.getElementById(`btn-shutter-overlay-${targetType}`);
-            const ghost = document.getElementById('layer-ghost-overlay');
+    el('img-baseline').classList.add('baseline-land');
+    setWipe(50);
 
-            if (streams[targetType]) {
-                streams[targetType].getTracks().forEach(track => track.stop());
-                streams[targetType] = null;
-            }
+    const pn = IPC[0].part_number;
+    el('stamp-pn').textContent = pn;
+    el('stamp').classList.remove('hidden');
+    el('stamp').classList.add('stamp-in');
+    log('<b>[ReferenceDB]</b> 기준 형상 매칭 완료 → <span class="font-mono text-ok">' + pn + '</span>');
 
-            video.classList.add('hidden');
-            video.srcObject = null;
-            shutter.classList.add('hidden');
-            ghost.classList.add('hidden');
+    await wait(900);
+    el('stamp').classList.add('hidden');
+    el('stamp').classList.remove('stamp-in');
+    el('img-baseline').classList.remove('baseline-land');
 
-            const colorClass = targetType === 'baseline' ? 'brand-green' : 'brand-cyan';
-            btnCamera.innerHTML = `<i class="fa-solid fa-video text-${colorClass}"></i> <span>카메라 즉시 촬영</span>`;
+    setStatus('READY', 'ok');
+    el('stage-hint').innerHTML = '<span class="text-focus font-semibold">기준 형상 매칭 완료 — 점검을 개시하십시오</span>';
+    armRunButton(true);
+}
 
-            if (!baselineImgBase64 && targetType === 'baseline') {
-                fallback.classList.remove('hidden');
-            }
-            if (!inspectionImgBase64 && targetType === 'inspection') {
-                fallback.classList.remove('hidden');
-            }
-        }
+function armRunButton(on) {
+    const b = el('btn-run');
+    b.disabled = !on;
+    b.className = on
+        ? 'px-7 py-3.5 rounded-lg bg-focus text-ink-900 font-extrabold text-[14px] tracking-wide flex items-center gap-2.5 hover:bg-cyan-300'
+        : 'px-7 py-3.5 rounded-lg bg-ink-600 text-slate-600 font-extrabold text-[14px] tracking-wide cursor-not-allowed flex items-center gap-2.5';
+}
 
-        function captureSnapshotFrame(targetType) {
-            const video = document.getElementById(`video-feed-${targetType}`);
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            const base64 = canvas.toDataURL('image/jpeg');
-            applyImageResource(base64, targetType);
-            stopWebcamFeed(targetType);
-        }
+/* ═══════════════════════════════════════════════════════════════
+   ACT 3 — 파이프라인
+═══════════════════════════════════════════════════════════════ */
+async function runPipeline() {
+    if (S.running || !S.baseline || !S.inspection) return;
+    S.running = true;
+    armRunButton(false);
+    el('btn-run-text').textContent = '분석 중...';
+    resetResults();
+    setPhase('analyze');
+    setStatus('ANALYZING', 'focus');
+    el('stage-hint').textContent = '기준 형상과 점검 대상을 정밀 대조하는 중입니다';
+    startClock();
+    log('<b>[ORCHESTRATOR]</b> 다중 에이전트 감항 검증 파이프라인 개시.');
 
-        function applyImageResource(base64Data, targetType) {
-            const preview = document.getElementById(`view-captured-${targetType}`);
-            const fallback = document.getElementById(`ui-fallback-${targetType}`);
-            const btnReset = document.getElementById(`btn-reset-${targetType}`);
-            const statusLabel = document.getElementById(`label-status-${targetType}`);
+    // ── Agent 01: Vision
+    switchTab('vision');
+    setNode('vision', 'running', 'SCANNING');
+    setRail(12);
+    el('stage').classList.add('scanning');
+    sweepWipe();
 
-            preview.src = base64Data;
-            preview.classList.remove('hidden');
-            fallback.classList.add('hidden');
-            btnReset.classList.remove('hidden');
+    const key = el('op-key').value.trim();
+    let defect = null;
 
-            if (targetType === 'baseline') {
-                baselineImgBase64 = base64Data;
-                statusLabel.innerHTML = `<span class="text-brand-green font-bold">등록 완료</span>`;
-            } else {
-                inspectionImgBase64 = base64Data;
-                statusLabel.innerHTML = `<span class="text-brand-cyan font-bold">등록 완료</span>`;
-            }
+    if (key.startsWith('AIzaSy')) {
+        log('<b>[VisionAgent]</b> Gemini 멀티모달 대조 요청 전송 (' + el('op-vision-model').value + ')...');
+        defect = await callGemini(key);
+    }
+    if (!defect) {
+        await wait(1800);
+        defect = simulateDefect();
+        log('<b>[VisionAgent]</b> 내장 시뮬레이션 엔진으로 대조 수행.');
+    }
 
-            validateWorkflowTransition();
-        }
+    el('stage').classList.remove('scanning');
 
-        function resetSelectedImage(targetType) {
-            const preview = document.getElementById(`view-captured-${targetType}`);
-            const fallback = document.getElementById(`ui-fallback-${targetType}`);
-            const btnReset = document.getElementById(`btn-reset-${targetType}`);
-            const statusLabel = document.getElementById(`label-status-${targetType}`);
+    if (!defect.__any) {
+        await renderClean();
+        finish();
+        return;
+    }
 
-            preview.src = '';
-            preview.classList.add('hidden');
-            fallback.classList.remove('hidden');
-            btnReset.classList.add('hidden');
-            statusLabel.innerHTML = `미등록`;
+    S.lastDefect = defect;
+    setNode('vision', 'done', 'COMPLETED');
+    setRail(38);
+    renderVision(defect);
+    log('<b>[VisionAgent]</b> 이상 검출 → <b class="text-alert">' + escapeHTML(defect.component_name_ko) + '</b> (신뢰도 ' + Math.round(defect.confidence * 100) + '%)');
 
-            if (targetType === 'baseline') {
-                baselineImgBase64 = null;
-            } else {
-                inspectionImgBase64 = null;
-                drawnBBox = null;
-            }
+    // ── LOCK-ON: 첫 번째 절정
+    await wait(260);
+    el('stage').classList.add('wipe-locked');
+    setWipe(0);
+    await wait(220);
+    lockOn(defect);
+    await wait(1150);
 
-            validateWorkflowTransition();
-        }
+    // ── Agent 02: Grounding
+    switchTab('grounding');
+    setNode('grounding', 'running', 'MATCHING');
+    setRail(50);
+    log('<b>[GroundingAgent]</b> mini-IPC 카탈로그 대조 중...');
+    await wait(1000);
 
-        function adjustGhostTransparency(val) {
-            document.getElementById('ghost-slider-txt').innerText = val + "%";
-            const ghost = document.getElementById('layer-ghost-overlay');
-            if (ghost) {
-                ghost.style.opacity = val / 100;
-            }
-        }
+    const match = IPC.find(c =>
+        defect.component_name_ko.includes(c.name_ko) || c.name_ko.includes(defect.component_name_ko)
+    ) || IPC[0];
 
-        function validateWorkflowTransition() {
-            const btnProceed = document.getElementById('btn-proceed-to-analysis');
-            const navBtnAnalysis = document.getElementById('nav-btn-analysis');
+    renderGrounding(match);
+    setNode('grounding', 'done', 'COMPLETED');
+    setRail(64);
+    log('<b>[GroundingAgent]</b> P/N 매칭 → <span class="font-mono text-focus">' + match.part_number + '</span>');
 
-            if (baselineImgBase64 && inspectionImgBase64) {
-                btnProceed.className = "bg-gradient-to-r from-brand-cyan to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-bold py-3 px-6 rounded-lg shadow-lg hover:shadow-cyan-500/25 transition-all flex items-center space-x-2 text-xs glow-cyan";
-                btnProceed.disabled = false;
-                btnProceed.innerHTML = `<span>점검 분석 제어실 터미널로 진입</span> <i class="fa-solid fa-arrow-right animate-pulse"></i>`;
-                
-                navBtnAnalysis.disabled = false;
-            } else {
-                btnProceed.className = "bg-gray-800 text-gray-500 cursor-not-allowed font-bold py-3 px-6 rounded-lg shadow-lg text-xs flex items-center space-x-2 transition-all duration-300";
-                btnProceed.disabled = true;
-                btnProceed.innerHTML = `<span>점검 분석 터미널로 진입 (비활성)</span>`;
+    // ── Agent 03: Validator
+    await wait(420);
+    switchTab('validator');
+    setNode('validator', 'running', 'VALIDATING');
+    setRail(76);
+    log('<b>[RuleValidator]</b> 결정론적 감항 규칙 평가 중...');
+    await wait(950);
 
-                navBtnAnalysis.disabled = true;
-            }
-        }
+    const { flags, violated } = validate(defect, match);
+    renderValidator(flags, violated);
+    setNode('validator', 'done', 'COMPLETED');
+    setRail(88);
+    log('<b>[RuleValidator]</b> 검증 완료. 플래그 ' + flags.length + '건 · 판정 <b class="' + (violated ? 'text-alert' : 'text-warn') + '">' + (violated ? 'FAIL' : 'WARN') + '</b>');
 
-        function initInteractiveCanvas() {
-            const container = document.getElementById('container-analysis-inspection');
-            container.addEventListener('mousedown', function(e) {
-                if (!inspectionImgBase64) return;
-                isDrawing = true;
-                const rect = container.getBoundingClientRect();
-                startX = e.clientX - rect.left;
-                startY = e.clientY - rect.top;
-            });
+    // ── Agent 04: Reporter
+    await wait(420);
+    setNode('reporter', 'running', 'WRITING');
+    log('<b>[ReportAgent]</b> 감항 보고서 문서화 중...');
+    await wait(1000);
 
-            container.addEventListener('mousemove', function(e) {
-                if (!isDrawing) return;
-                const rect = container.getBoundingClientRect();
-                const currentX = e.clientX - rect.left;
-                const currentY = e.clientY - rect.top;
+    renderReport(defect, match, violated);
+    setNode('reporter', 'done', 'COMPLETED');
+    setRail(100);
+    log('<b>[ORCHESTRATOR]</b> <b class="text-ok">파이프라인 정상 종료.</b>');
 
-                const left = Math.min(startX, currentX);
-                const top = Math.min(startY, currentY);
-                const width = Math.abs(startX - currentX);
-                const height = Math.abs(startY - currentY);
+    // ── ACT 4: 판정 슬램
+    await wait(340);
+    showVerdict(defect, match, violated);
+    finish();
+}
 
-                const overlay = document.getElementById('bbox-overlay-analysis');
-                overlay.style.left = left + 'px';
-                overlay.style.top = top + 'px';
-                overlay.style.width = width + 'px';
-                overlay.style.height = height + 'px';
-                overlay.classList.remove('hidden');
-                document.getElementById('bbox-analysis-label').innerText = "정밀 사용자 정의 범위";
-            });
+function finish() {
+    S.running = false;
+    stopClock();
+    armRunButton(true);
+    el('btn-run-text').textContent = '재점검';
+}
 
-            container.addEventListener('mouseup', function(e) {
-                if (!isDrawing) return;
-                isDrawing = false;
-                const rect = container.getBoundingClientRect();
-                const endX = e.clientX - rect.left;
-                const endY = e.clientY - rect.top;
+/* ═══════════════════════════════════════════════════════════════
+   Gemini 실연동
+═══════════════════════════════════════════════════════════════ */
+async function callGemini(key) {
+    const model = el('op-vision-model').value;
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + key;
 
-                // Relative point mapping
-                const x0 = Math.min(startX, endX) / rect.width;
-                const y0 = Math.min(startY, endY) / rect.height;
-                const x1 = Math.max(startX, endX) / rect.width;
-                const y1 = Math.max(startY, endY) / rect.height;
+    const prompt =
+`당신은 항공정비 기체 검사원 비전 에이전트입니다.
+이미지 1은 공인 DB의 정상 기준 형상, 이미지 2는 현장에서 촬영한 점검 대상입니다.
+두 이미지를 정밀 대조하여, 이미지 2에서 '누락된 부품(missing_part)' 또는 '오장착(misinstalled_part)'을 식별하십시오.
+bbox_inspection은 이미지 2를 기준으로 [ymin, xmin, ymax, xmax] 순서, 0~1000 정규화 좌표로 응답하십시오.
+component_name_ko와 evidence는 한국어로 상세히 작성하십시오.
+이상이 없으면 discrepancies를 빈 배열로 응답하십시오.`;
 
-                drawnBBox = [x0, y0, x1, y1];
-                updateTerminalLog(`[SYSTEM] BBox defined via drag remapping: [${drawnBBox.map(n => n.toFixed(2))}]`);
-            });
-        }
-
-        function updateTerminalLog(msg) {
-            const term = document.getElementById('mini-terminal');
-            const line = document.createElement('div');
-            line.innerHTML = `<span class="text-gray-500">[${new Date().toLocaleTimeString()}]</span> ${msg}`;
-            term.appendChild(line);
-            term.scrollTop = term.scrollHeight;
-        }
-
-        async function executeAeroInspectPipeline() {
-            resetPipelineIndicatorUI();
-            updateTerminalLog("<b>[MAIN_ORCHESTRATOR]</b> Commencing multi-agent compliance pipeline.");
-
-            const apiKey = document.getElementById('gemini-key').value.trim();
-
-            updatePipelineMetric('vision', 'RUNNING', 45);
-            updateTerminalLog("<b>[VisionAgent]</b> Initiating cross-image object classification analysis...");
-
-            if (apiKey.startsWith('AIzaSy')) {
-                // Call actual Gemini REST Service
-                await requestGeminiMultimodalService(apiKey);
-            } else {
-                // Simulated execution
-                setTimeout(() => {
-                    executeSimulatedVisionAgent();
-                }, 1200);
-            }
-        }
-
-        function updatePipelineMetric(stepId, state, width) {
-            const card = document.getElementById(`step-card-${stepId}`);
-            const badge = document.getElementById(`step-badge-${stepId}`);
-            const bar = document.getElementById(`step-bar-${stepId}`);
-
-            if (state === 'RUNNING') {
-                card.className = "p-3 rounded-lg border border-brand-cyan bg-brand-cyan/5 space-y-1.5 transition glow-cyan";
-                badge.innerText = "RUNNING";
-                badge.className = "text-[9px] bg-brand-cyan text-black uppercase px-1.5 py-0.5 rounded font-bold animate-pulse";
-                bar.style.width = width + '%';
-            } else if (state === 'COMPLETED') {
-                card.className = "p-3 rounded-lg border border-brand-green/40 bg-gray-950/40 space-y-1.5 transition";
-                badge.innerText = "COMPLETED";
-                badge.className = "text-[9px] bg-brand-green/20 text-brand-green uppercase px-1.5 py-0.5 rounded font-bold";
-                bar.style.width = '100%';
-            }
-        }
-
-        function resetPipelineIndicatorUI() {
-            ['vision', 'grounding', 'validator', 'reporter'].forEach(step => {
-                const card = document.getElementById(`step-card-${step}`);
-                const badge = document.getElementById(`step-badge-${step}`);
-                const bar = document.getElementById(`step-bar-${step}`);
-                card.className = "p-3 rounded-lg border border-gray-800 bg-gray-950/40 space-y-1.5 transition";
-                badge.innerText = "READY";
-                badge.className = "text-[9px] text-gray-500 uppercase px-1.5 py-0.5 rounded font-bold";
-                bar.style.width = '0%';
-            });
-
-            document.getElementById('discrepancy-table-body').innerHTML = `
-                <tr>
-                    <td colspan="5" class="px-4 py-8 text-center text-gray-500">
-                        <i class="fa-solid fa-hourglass mr-2 animate-pulse"></i>분석이 실행 중입니다...
-                    </td>
-                </tr>
-            `;
-            document.getElementById('vision-summary-txt').innerText = '"시나리오 매핑 중..."';
-            document.getElementById('vision-json-preview').innerText = '{}';
-        }
-
-        async function requestGeminiMultimodalService(apiKey) {
-            const model = document.getElementById('select-vision-model').value;
-            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-            const base64Baseline = baselineImgBase64.split(',')[1];
-            const base64Inspection = inspectionImgBase64.split(',')[1];
-
-            updateTerminalLog(`<b>[VisionAgent]</b> Streaming to Google REST server using ${model}...`);
-
-            const prompt = `당신은 항공정비 기체 검사원 비전 에이전트입니다. 
-제공된 이미지 1(기준 정상 형상)과 이미지 2(점검 기체 사진)를 다각도에서 정밀 픽셀 대조 검사하고, 만약 이미지 1과 비교했을 때 이미지 2에서 '누락된 부품(missing_part)' 또는 '조립 변형 오장착(misinstalled_part)'이 있는 경우 이를 식별해 주세요.
-분석 결과를 반드시 제공된 JSON 스키마 규격으로만 응답해야 합니다. 스키마 형태를 정확히 지키며, 한국어로 'component_name_ko' 및 'evidence'를 상세히 작성해 주세요.`;
-
-            const requestPayload = {
-                contents: [
-                    {
-                        parts: [
-                            { text: prompt },
-                            { inlineData: { mimeType: "image/jpeg", data: base64Baseline } },
-                            { inlineData: { mimeType: "image/jpeg", data: base64Inspection } }
-                        ]
-                    }
-                ],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            discrepancies: {
-                                type: "ARRAY",
-                                items: {
-                                    type: "OBJECT",
-                                    properties: {
-                                        discrepancy_id: { type: "STRING" },
-                                        discrepancy_type: { type: "STRING", enum: ["missing_part", "misinstalled_part", "foreign_object", "surface_damage", "other"] },
-                                        component_name_ko: { type: "STRING" },
-                                        component_name_en: { type: "STRING" },
-                                        aircraft_side: { type: "STRING", enum: ["left", "right", "center", "unknown"] },
-                                        image_position_desc: { type: "STRING" },
-                                        bbox_inspection: {
-                                            type: "ARRAY",
-                                            items: { type: "NUMBER" }
-                                        },
-                                        evidence: { type: "STRING" },
-                                        severity: { type: "STRING", enum: ["low", "medium", "high", "critical"] },
-                                        confidence: { type: "NUMBER" }
-                                    },
-                                    required: ["discrepancy_id", "discrepancy_type", "component_name_ko", "aircraft_side", "bbox_inspection", "evidence", "severity", "confidence"]
-                                }
-                            }
+    const body = {
+        contents: [{
+            parts: [
+                { text: prompt },
+                { inlineData: { mimeType: 'image/jpeg', data: S.baseline.split(',')[1] } },
+                { inlineData: { mimeType: 'image/jpeg', data: S.inspection.split(',')[1] } }
+            ]
+        }],
+        generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+                type: 'OBJECT',
+                properties: {
+                    discrepancies: {
+                        type: 'ARRAY',
+                        items: {
+                            type: 'OBJECT',
+                            properties: {
+                                discrepancy_id:      { type: 'STRING' },
+                                discrepancy_type:    { type: 'STRING', enum: ['missing_part','misinstalled_part','foreign_object','surface_damage','other'] },
+                                component_name_ko:   { type: 'STRING' },
+                                component_name_en:   { type: 'STRING' },
+                                aircraft_side:       { type: 'STRING', enum: ['left','right','center','unknown'] },
+                                image_position_desc: { type: 'STRING' },
+                                bbox_inspection:     { type: 'ARRAY', items: { type: 'NUMBER' } },
+                                evidence:            { type: 'STRING' },
+                                severity:            { type: 'STRING', enum: ['low','medium','high','critical'] },
+                                confidence:          { type: 'NUMBER' }
+                            },
+                            required: ['discrepancy_id','discrepancy_type','component_name_ko','aircraft_side','bbox_inspection','evidence','severity','confidence']
                         }
                     }
-                }
-            };
-
-            try {
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestPayload)
-                });
-
-                if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-
-                const json = await response.json();
-                const rawText = json.candidates[0].content.parts[0].text;
-                const result = JSON.parse(rawText);
-
-                updatePipelineMetric('vision', 'COMPLETED');
-                updateTerminalLog("<b>[VisionAgent]</b> Extraction successful.");
-
-                if (result.discrepancies && result.discrepancies.length > 0) {
-                    const defect = result.discrepancies[0];
-                    renderVisionResults(defect);
-                    renderBBoxOverlays(defect.bbox_inspection);
-                    startGroundingPipeline(defect);
-                } else {
-                    renderEmptyAeroInspect();
-                }
-            } catch (err) {
-                console.error("Gemini pipeline error: ", err);
-                updateTerminalLog(`<b>[VisionAgent]</b> <span class="text-brand-red">Failed!</span> Falling back to Smart Simulation Mode.`);
-                executeSimulatedVisionAgent();
+                },
+                required: ['discrepancies']
             }
         }
+    };
 
-        function executeSimulatedVisionAgent() {
-            updatePipelineMetric('vision', 'COMPLETED');
-            updateTerminalLog("<b>[VisionAgent]</b> Simulation Engine running detection match comparison.");
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
 
-            let defect;
-            if (drawnBBox) {
-                defect = {
-                    discrepancy_id: "D-MOCK-01",
-                    discrepancy_type: "missing_part",
-                    component_name_ko: "우측 수직꼬리날개",
-                    component_name_en: "Right Vertical Stabilizer Wing",
-                    aircraft_side: "right",
-                    image_position_desc: "유저가 드래그하여 임의로 지정한 검출 좌표 영역",
-                    bbox_inspection: drawnBBox,
-                    evidence: "사용자 드래그 지정 영역 내에서 조립 홈 탈락으로 인한 미익 결합 브래킷 단독 노출 및 부품 부재 감지.",
-                    severity: "critical",
-                    confidence: 0.88
-                };
-            } else {
-                defect = {
-                    discrepancy_id: "D-001",
-                    discrepancy_type: "missing_part",
-                    component_name_ko: "우측 수직꼬리날개",
-                    component_name_en: "Right Vertical Stabilizer Wing",
-                    aircraft_side: "right",
-                    image_position_desc: "기수 중심부 우측 후단 수직 꼬리날개 장착 하프 라인",
-                    bbox_inspection: [0.15, 0.65, 0.45, 0.85],
-                    evidence: "기준 기체 상단 수직꼬리날개와 다르게, 라이브 점검 기체 조립 마운트 구조에 날개가 탈락되어 수축 브래킷 단면만 노출됨.",
-                    severity: "critical",
-                    confidence: 0.94
-                };
-            }
+        const json = await res.json();
+        const text = json && json.candidates && json.candidates[0] &&
+                     json.candidates[0].content.parts[0].text;
+        if (!text) throw new Error('빈 응답');
 
-            renderVisionResults(defect);
-            renderBBoxOverlays(defect.bbox_inspection);
-            startGroundingPipeline(defect);
-        }
+        const parsed = JSON.parse(text);
+        log('<b>[VisionAgent]</b> Gemini 응답 수신 및 스키마 검증 통과.');
 
-        function renderBBoxOverlays(bbox) {
-            const overlay = document.getElementById('bbox-overlay-analysis');
-            const container = document.getElementById('container-analysis-inspection');
-            const rect = container.getBoundingClientRect();
+        if (!parsed.discrepancies || !parsed.discrepancies.length) return { __any: false };
 
-            let ymin, xmin, ymax, xmax;
-            if (drawnBBox) {
-                xmin = bbox[0]; ymin = bbox[1]; xmax = bbox[2]; ymax = bbox[3];
-            } else {
-                ymin = bbox[0]; xmin = bbox[1]; ymax = bbox[2]; xmax = bbox[3];
-            }
+        const d = parsed.discrepancies[0];
+        d.bbox_inspection = normalizeBBox(d.bbox_inspection);
+        d.__any = true;
+        return d;
+    } catch (err) {
+        console.error('Gemini 호출 실패:', err);
+        log('<b>[VisionAgent]</b> <span class="text-alert">Gemini 호출 실패 (' + escapeHTML(err.message) + ').</span> 시뮬레이션으로 폴백합니다.');
+        return null;
+    }
+}
 
-            overlay.style.left = (xmin * rect.width) + 'px';
-            overlay.style.top = (ymin * rect.height) + 'px';
-            overlay.style.width = ((xmax - xmin) * rect.width) + 'px';
-            overlay.style.height = ((ymax - ymin) * rect.height) + 'px';
+function simulateDefect() {
+    return {
+        __any: true,
+        discrepancy_id: S.drawnBBox ? 'D-OPR-01' : 'D-001',
+        discrepancy_type: 'missing_part',
+        component_name_ko: '우측 수직꼬리날개',
+        component_name_en: 'Right Vertical Stabilizer',
+        aircraft_side: 'right',
+        image_position_desc: S.drawnBBox ? '오퍼레이터 지정 좌표 영역' : '후방 동체 우현 수직미익 장착 하프 라인',
+        bbox_inspection: S.drawnBBox || [0.14, 0.16, 0.62, 0.44],
+        evidence: '기준 형상에 존재하는 수직꼬리날개가 점검 대상에서 확인되지 않으며, 장착 마운트의 결합 브래킷 단면이 그대로 노출되어 있습니다. 리벳 홀 주변 도장 손상 흔적으로 보아 탈락으로 판단됩니다.',
+        severity: 'critical',
+        confidence: 0.94
+    };
+}
 
-            overlay.classList.remove('hidden');
-            document.getElementById('bbox-analysis-label').innerText = "이상 탐지 영역";
-        }
+/* ═══════════════════════════════════════════════════════════════
+   기하 — object-contain 레터박스를 반영한 정확한 bbox 배치
+   (구버전은 컨테이너 기준으로 계산해 박스가 실제 부품에서 어긋났다)
+═══════════════════════════════════════════════════════════════ */
+function containRect(img, box) {
+    const cw = box.clientWidth, ch = box.clientHeight;
+    const nw = img.naturalWidth, nh = img.naturalHeight;
+    if (!nw || !nh) return { left: 0, top: 0, width: cw, height: ch };
+    const s = Math.min(cw / nw, ch / nh);
+    const w = nw * s, h = nh * s;
+    return { left: (cw - w) / 2, top: (ch - h) / 2, width: w, height: h };
+}
 
-        function renderVisionResults(defect) {
-            const tbody = document.getElementById('discrepancy-table-body');
-            tbody.innerHTML = `
-                <tr class="border-b border-brand-border bg-gray-900/40 hover:bg-gray-800/40 transition">
-                    <td class="px-4 py-3 font-mono text-brand-cyan">${defect.discrepancy_id}</td>
-                    <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[9px] bg-brand-redDim text-brand-red font-semibold">${defect.discrepancy_type}</span></td>
-                    <td class="px-4 py-3 font-bold text-white">${defect.component_name_ko}</td>
-                    <td class="px-4 py-3 text-gray-400 capitalize">${defect.aircraft_side}</td>
-                    <td class="px-4 py-3 font-mono font-bold text-brand-cyan">${(defect.confidence * 100).toFixed(0)}%</td>
-                </tr>
-            `;
+function normalizeBBox(raw) {
+    let b = (raw || []).slice(0, 4).map(Number);
+    if (b.length !== 4 || b.some(v => !isFinite(v))) return [0.3, 0.3, 0.7, 0.7];
+    if (b.some(v => v > 1.5)) b = b.map(v => v / 1000);   // Gemini 0–1000 정규화 규약
+    b = b.map(v => Math.min(1, Math.max(0, v)));
+    let [ymin, xmin, ymax, xmax] = b;
+    if (ymin > ymax) { const t = ymin; ymin = ymax; ymax = t; }
+    if (xmin > xmax) { const t = xmin; xmin = xmax; xmax = t; }
+    return [ymin, xmin, ymax, xmax];
+}
 
-            document.getElementById('vision-summary-txt').innerHTML = `
-                <b>[${defect.component_name_ko}]</b> 조립 누락 감지.<br>
-                <b>판정 근거:</b> ${defect.evidence}
-            `;
+function placeBBox(bbox) {
+    const ymin = bbox[0], xmin = bbox[1], ymax = bbox[2], xmax = bbox[3];
+    const r = containRect(el('img-inspection'), el('stage'));
+    const b = el('bbox');
+    b.style.left   = (r.left + xmin * r.width)  + 'px';
+    b.style.top    = (r.top  + ymin * r.height) + 'px';
+    b.style.width  = ((xmax - xmin) * r.width)  + 'px';
+    b.style.height = ((ymax - ymin) * r.height) + 'px';
+}
 
-            document.getElementById('vision-json-preview').innerText = JSON.stringify(defect, null, 2);
-        }
+function lockOn(defect) {
+    const b = el('bbox');
+    el('bbox-label').textContent = defect.discrepancy_type === 'missing_part'
+        ? 'MISSING PART · ' + defect.component_name_ko
+        : defect.discrepancy_type.toUpperCase().replace(/_/g, ' ');
+    placeBBox(defect.bbox_inspection);
+    b.classList.remove('hidden', 'slam');
+    void b.offsetWidth;                 // 리플로우 강제 → 애니메이션 재생 보장
+    b.classList.add('slam');
+    el('stage').classList.add('shake');
+    setTimeout(() => el('stage').classList.remove('shake'), 450);
+    log('<b>[VisionAgent]</b> <span class="text-alert font-bold">LOCK-ON</span> — 결함 영역 좌표 확정.');
+}
 
-        function renderEmptyAeroInspect() {
-            document.getElementById('discrepancy-table-body').innerHTML = `
-                <tr>
-                    <td colspan="5" class="px-4 py-8 text-center text-brand-green font-bold text-[11px]">
-                        <i class="fa-solid fa-circle-check mr-2"></i>모든 구성품 형상 매칭 통과. 누락이나 손상이 발견되지 않았습니다.
-                    </td>
-                </tr>
-            `;
-            document.getElementById('vision-summary-txt').innerText = "필수 체크리스트 항목 100% 설계 준수 일치 확인 완료.";
-            document.getElementById('vision-json-preview').innerText = '{"status": "CLEAN", "matched": true}';
+/* ═══════════════════════════════════════════════════════════════
+   와이프 / 분할선
+═══════════════════════════════════════════════════════════════ */
+function setWipe(pct) {
+    const v = Math.min(100, Math.max(0, pct));
+    document.documentElement.style.setProperty('--wipe', v + '%');
+    // 해당 프레임이 화면에서 사라지면 그 라벨도 함께 사라져야 한다.
+    // (그렇지 않으면 점검 대상만 보이는데 "REFERENCE DB" 라벨이 남아 오독을 유발한다)
+    el('label-ref').style.opacity  = v < 14 ? Math.max(0, (v - 4) / 10) : 1;
+    el('label-live').style.opacity = v > 86 ? Math.max(0, (96 - v) / 10) : 1;
+}
 
-            updatePipelineMetric('grounding', 'COMPLETED');
-            updatePipelineMetric('validator', 'COMPLETED');
-            updatePipelineMetric('reporter', 'COMPLETED');
+function sweepWipe() {
+    // 기준 → 점검 방향으로 훑어 결함이 "사라지는" 순간을 보여준다.
+    const dur = 1500 / speed();
+    const t0 = performance.now();
+    setWipe(100);
+    function step(now) {
+        const p = Math.min(1, (now - t0) / dur);
+        const eased = p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+        setWipe(100 - eased * 60);      // 100% → 40%
+        if (p < 1 && el('stage').classList.contains('scanning')) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+}
 
-            document.getElementById('val-status-box').className = "p-5 rounded-lg bg-brand-greenDim/20 border border-brand-green/30 flex flex-col items-center justify-center text-center space-y-1 glow-green";
-            document.getElementById('val-status-box').innerHTML = `
-                <i class="fa-solid fa-shield-halved text-brand-green text-3xl"></i>
-                <div class="text-xs font-bold text-white">무결성 완벽 통과 (PASS)</div>
-            `;
-            
-            document.getElementById('r-date').innerText = new Date().toLocaleString();
-            document.getElementById('r-inspector').innerText = document.getElementById('input-inspector').value;
-            document.getElementById('r-result-badge').innerText = "비행 가용 (CLEAN)";
-            document.getElementById('r-result-badge').className = "text-brand-green font-bold";
-            document.getElementById('r-summary-text').innerText = "항공 정밀 영상 점검 결과, 실장 기체 조립 형상이 공인 기준 모델과 오차 범위 내로 완벽하게 일치하여 출고 및 비행 가용 판정을 인가합니다.";
-        }
+function initDivider() {
+    const stage = el('stage'), div = el('divider');
+    let dragging = false;
+    const move = e => {
+        if (!dragging) return;
+        const r = stage.getBoundingClientRect();
+        const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+        setWipe((x / r.width) * 100);
+    };
+    div.addEventListener('mousedown', e => { e.preventDefault(); dragging = true; });
+    div.addEventListener('touchstart', () => { dragging = true; }, { passive: true });
+    window.addEventListener('mousemove', move);
+    window.addEventListener('touchmove', move, { passive: true });
+    window.addEventListener('mouseup', () => { dragging = false; });
+    window.addEventListener('touchend', () => { dragging = false; });
+}
 
-        function startGroundingPipeline(defect) {
-            updatePipelineMetric('grounding', 'RUNNING', 65);
-            updateTerminalLog("<b>[GroundingAgent]</b> Cross-referencing mini-IPC catalogs for structural blueprints...");
+/* ═══════════════════════════════════════════════════════════════
+   드래그 결함 재지정 (오퍼레이터 전용 · 기본 비활성)
+═══════════════════════════════════════════════════════════════ */
+function toggleRemap(on) {
+    el('remap-hint').classList.toggle('hidden', !on);
+    if (!on) S.drawnBBox = null;
+}
 
-            setTimeout(() => {
-                updatePipelineMetric('grounding', 'COMPLETED');
+function initRemap() {
+    const stage = el('stage');
+    let drawing = false, sx = 0, sy = 0;
 
-                const matched = mockIPCLocal.component_templates.find(c => 
-                    defect.component_name_ko.includes(c.name_ko) || c.name_ko.includes(defect.component_name_ko)
-                ) || mockIPCLocal.component_templates[0];
+    stage.addEventListener('mousedown', e => {
+        if (!el('op-remap').checked || !S.inspection) return;
+        if (e.target.closest('#divider')) return;
+        const r = stage.getBoundingClientRect();
+        drawing = true; sx = e.clientX - r.left; sy = e.clientY - r.top;
+    });
 
-                updateTerminalLog(`<b>[GroundingAgent]</b> Matched Part Number (P/N): <span class="text-brand-cyan font-mono">${matched.part_number}</span>`);
-                renderGroundingSpecs(matched);
+    stage.addEventListener('mousemove', e => {
+        if (!drawing) return;
+        const r = stage.getBoundingClientRect();
+        const cx = e.clientX - r.left, cy = e.clientY - r.top;
+        const b = el('bbox');
+        b.classList.remove('hidden', 'slam');
+        b.style.left   = Math.min(sx, cx) + 'px';
+        b.style.top    = Math.min(sy, cy) + 'px';
+        b.style.width  = Math.abs(cx - sx) + 'px';
+        b.style.height = Math.abs(cy - sy) + 'px';
+        el('bbox-label').textContent = '영역 지정 중';
+    });
 
-                startValidatorPipeline(defect, matched);
-            }, 1000);
-        }
+    stage.addEventListener('mouseup', e => {
+        if (!drawing) return;
+        drawing = false;
+        const r  = stage.getBoundingClientRect();
+        const ir = containRect(el('img-inspection'), stage);
+        const ex = e.clientX - r.left, ey = e.clientY - r.top;
+        // 컨테이너 좌표 → 이미지 정규화 좌표 (레터박스 보정)
+        const nx = v => Math.min(1, Math.max(0, (v - ir.left) / ir.width));
+        const ny = v => Math.min(1, Math.max(0, (v - ir.top)  / ir.height));
+        S.drawnBBox = [
+            Math.min(ny(sy), ny(ey)), Math.min(nx(sx), nx(ex)),
+            Math.max(ny(sy), ny(ey)), Math.max(nx(sx), nx(ex))
+        ];
+        log('[OPERATOR] 결함 영역 재지정 → [' + S.drawnBBox.map(n => n.toFixed(2)).join(', ') + ']');
+    });
+}
 
-        function renderGroundingSpecs(matched) {
-            document.getElementById('g-part-name').innerText = `${matched.name_ko} (${matched.name_en})`;
-            document.getElementById('g-part-num').innerText = matched.part_number;
-            document.getElementById('g-part-critical').innerHTML = matched.flight_critical 
-                ? `<span class="text-brand-red font-bold"><i class="fa-solid fa-circle-exclamation"></i> Flight-Critical</span>`
-                : `<span class="text-gray-450">Normal Accessory</span>`;
-            
-            const actionMap = {
-                "ground_aircraft": "GROUND AIRCRAFT (기체 즉각 출고 및 비행 불허)",
-                "install_before_flight": "INSTALL BEFORE FLIGHT (이륙 전 재장착 조치)"
-            };
-            document.getElementById('g-part-disposition').innerText = actionMap[matched.disposition_if_missing] || matched.disposition_if_missing;
+/* ═══════════════════════════════════════════════════════════════
+   렌더링
+═══════════════════════════════════════════════════════════════ */
+function renderVision(d) {
+    el('vision-tbody').innerHTML =
+        '<tr class="border-t border-white/[.06]">' +
+            '<td class="px-4 py-3 font-mono text-slate-400">' + escapeHTML(d.discrepancy_id) + '</td>' +
+            '<td class="px-4 py-3"><span class="px-2 py-1 rounded bg-alert/15 text-alert text-[10.5px] font-bold tracking-wide">' + escapeHTML(d.discrepancy_type) + '</span></td>' +
+            '<td class="px-4 py-3 font-bold text-white">' + escapeHTML(d.component_name_ko) + '</td>' +
+            '<td class="px-4 py-3 text-slate-400 capitalize">' + escapeHTML(d.aircraft_side) + '</td>' +
+            '<td class="px-4 py-3 font-mono font-bold text-white text-right">' + Math.round(d.confidence * 100) + '%</td>' +
+        '</tr>';
 
-            document.getElementById('g-part-citations').innerHTML = `
-                <div class="bg-gray-950 border border-gray-800 p-2 rounded flex justify-between items-center text-[10px]">
-                    <span><i class="fa-solid fa-file-pdf text-brand-cyan mr-1.5"></i>${matched.reference_docs[0].doc}</span>
-                    <span class="text-brand-amber font-mono">${matched.reference_docs[0].section}</span>
-                </div>
-            `;
+    el('vision-evidence').innerHTML =
+        '<b class="text-alert">[' + escapeHTML(d.component_name_ko) + ']</b> ' + escapeHTML(d.evidence);
 
-            let stepsHtml = '';
-            matched.installation_steps.forEach((step, idx) => {
-                stepsHtml += `
-                    <li class="border-b border-gray-900 pb-1.5 leading-relaxed">
-                        <span class="text-brand-cyan font-bold">Step ${idx+1}:</span> ${step}
-                    </li>
-                `;
-            });
-            document.getElementById('g-part-steps').innerHTML = stepsHtml;
+    const shown = Object.assign({}, d);
+    delete shown.__any;
+    el('vision-json').textContent = JSON.stringify(shown, null, 2);
+    markTab('vision');
+}
 
-            document.getElementById('g-status-badge').innerHTML = `
-                <span class="bg-brand-greenDim text-brand-green text-[9px] px-2 py-0.5 rounded border border-brand-green/30 font-bold uppercase">
-                    <i class="fa-solid fa-database mr-1"></i>IPC direct search
-                </span>
-            `;
-        }
+function renderGrounding(m) {
+    el('g-name').textContent = m.name_ko + ' (' + m.name_en + ')';
+    el('g-pn').textContent = m.part_number;
+    el('g-critical').innerHTML = m.flight_critical
+        ? '<span class="text-alert"><i class="fa-solid fa-circle-exclamation mr-1"></i>Flight-Critical</span>'
+        : '<span class="text-slate-400">Normal Accessory</span>';
 
-        function startValidatorPipeline(defect, matched) {
-            updatePipelineMetric('validator', 'RUNNING', 80);
-            updateTerminalLog("<b>[Validator]</b> Evaluating rules-based constraints for aviation safety.");
+    const disp = DISPOSITION_LABEL[m.disposition_if_missing] || m.disposition_if_missing;
+    el('g-disposition').innerHTML =
+        '<span class="' + (m.flight_critical ? 'text-alert' : 'text-warn') + '">' + escapeHTML(disp) + '</span>';
 
-            setTimeout(() => {
-                updatePipelineMetric('validator', 'COMPLETED');
-                
-                const confidenceTh = parseFloat(document.getElementById('input-confidence-th').value);
-                const forceMismatch = document.getElementById('check-side-mismatch').checked;
-                
-                const flags = [];
-                let isViolated = false;
+    el('g-citations').innerHTML = m.reference_docs.map(r =>
+        '<div class="flex justify-between items-center gap-3 px-2.5 py-2 rounded bg-black/40 border border-white/[.07] text-[11.5px]">' +
+            '<span class="font-mono text-slate-300"><i class="fa-solid fa-file-lines mr-1.5 text-slate-500"></i>' + escapeHTML(r.doc) + '</span>' +
+            '<span class="font-mono text-slate-500">' + escapeHTML(r.section) + '</span>' +
+        '</div>'
+    ).join('');
 
-                if (defect.confidence < confidenceTh) {
-                    flags.push({
-                        id: "REVIEW_REQUIRED",
-                        severity: "amber",
-                        desc: `판독 신뢰 수준 검출 경보: 측정값(${(defect.confidence*105).toFixed(0)}%)이 임계치(${(confidenceTh*100).toFixed(0)}%)보다 작음. 정비사 수동 목시 재검을 지시합니다.`
-                    });
-                }
+    el('g-steps').innerHTML = m.installation_steps.map((s, i) =>
+        '<li class="flex gap-2.5 border-b border-white/[.05] pb-2 last:border-0">' +
+            '<span class="font-mono font-bold text-slate-600 shrink-0">' + String(i + 1).padStart(2, '0') + '</span>' +
+            '<span>' + escapeHTML(s) + '</span>' +
+        '</li>'
+    ).join('');
 
-                if (matched.flight_critical && defect.discrepancy_type === 'missing_part') {
-                    flags.push({
-                        id: "ESCALATED_CRITICAL",
-                        severity: "red",
-                        desc: "비행 감항성 치명 부품 누락: 감항성 통제 규정에 따라 기체 등급 위험 조치 수준을 최고 단계(CRITICAL)로 긴급 강제 인가 조치함."
-                    });
-                    isViolated = true;
-                }
+    el('grounding-badge').innerHTML =
+        '<span class="px-2.5 py-1 rounded bg-ok/[.12] text-ok text-[10.5px] font-bold tracking-wide border border-ok/25">' +
+            '<i class="fa-solid fa-database mr-1"></i>IPC 직접 조회' +
+        '</span>';
+    markTab('grounding');
+}
 
-                if (forceMismatch || (defect.aircraft_side !== matched.catalog_side)) {
-                    flags.push({
-                        id: "SIDE_MISMATCH",
-                        severity: "red",
-                        desc: `좌우 정합성 방향 불일치: 컴퓨터가 분석한 검출 방향(${defect.aircraft_side.toUpperCase()})과 정비 도면 상 부품 방향(${matched.catalog_side.toUpperCase()})이 모순됩니다.`
-                    });
-                    isViolated = true;
-                }
+function validate(d, m) {
+    const th = parseFloat(el('op-th').value);
+    const force = el('op-side-mismatch').checked;
+    const flags = [];
+    let violated = false;
 
-                const valStatusBox = document.getElementById('val-status-box');
-                const valFlagsList = document.getElementById('val-flags-list');
+    if (d.confidence < th) {
+        flags.push({
+            id: 'REVIEW_REQUIRED', severity: 'warn',
+            desc: '판독 신뢰도 ' + Math.round(d.confidence * 100) + '%가 임계값 ' + Math.round(th * 100) +
+                  '% 미만입니다. 정비사 수동 목시 재검을 지시합니다.'
+        });
+    }
+    if (m.flight_critical && d.discrepancy_type === 'missing_part') {
+        flags.push({
+            id: 'ESCALATED_CRITICAL', severity: 'alert',
+            desc: '비행 필수(Flight-Critical) 부품 누락입니다. 감항성 통제 규정에 따라 위험 등급을 최고 단계로 강제 상향하고 출고를 차단합니다.'
+        });
+        violated = true;
+    }
+    if (force || d.aircraft_side !== m.catalog_side) {
+        flags.push({
+            id: 'SIDE_MISMATCH', severity: 'alert',
+            desc: 'AI 검출 방향(' + d.aircraft_side.toUpperCase() + ')과 도면상 부품 방향(' +
+                  m.catalog_side.toUpperCase() + ')이 모순됩니다.'
+        });
+        violated = true;
+    }
+    return { flags, violated };
+}
 
-                if (isViolated) {
-                    valStatusBox.className = "p-5 rounded-lg bg-brand-redDim/20 border border-brand-red/30 flex flex-col items-center justify-center text-center space-y-2 glow-red";
-                    valStatusBox.innerHTML = `
-                        <div class="w-12 h-12 rounded-full bg-brand-red/20 flex items-center justify-center text-xl text-brand-red">
-                            <i class="fa-solid fa-ban"></i>
-                        </div>
-                        <div class="text-xs font-bold text-white">무결성 검증 실패 (FAIL)</div>
-                        <p class="text-[9px] text-gray-400">안전 가드레일에 의해 출고 프로세스가 차단되었습니다.</p>
-                    `;
-                } else {
-                    valStatusBox.className = "p-5 rounded-lg bg-brand-amberDim/20 border border-brand-amber/30 flex flex-col items-center justify-center text-center space-y-2 glow-amber";
-                    valStatusBox.innerHTML = `
-                        <div class="w-12 h-12 rounded-full bg-brand-amber/20 flex items-center justify-center text-xl text-brand-amber">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                        </div>
-                        <div class="text-xs font-bold text-white">주의 조치 권고 (WARN)</div>
-                        <p class="text-[9px] text-gray-400">이륙 전 자재 재장착 조치가 지시되었습니다.</p>
-                    `;
-                }
+function renderValidator(flags, violated) {
+    const box = el('val-box');
+    if (violated) {
+        box.className = 'md:col-span-2 rounded-lg bg-alert/[.07] border border-alert/30 p-6 flex flex-col items-center justify-center text-center gap-3';
+        box.style.boxShadow = '0 0 34px rgba(255,59,59,.18), inset 0 0 34px rgba(255,59,59,.06)';
+        box.innerHTML =
+            '<div class="w-14 h-14 rounded-full bg-alert/15 flex items-center justify-center text-2xl text-alert"><i class="fa-solid fa-ban"></i></div>' +
+            '<div class="text-[15px] font-black text-white tracking-wide">무결성 검증 실패</div>' +
+            '<div class="text-[11.5px] text-slate-400 leading-relaxed">안전 가드레일이 출고 프로세스를 차단했습니다.</div>';
+    } else {
+        box.className = 'md:col-span-2 rounded-lg bg-warn/[.07] border border-warn/30 p-6 flex flex-col items-center justify-center text-center gap-3';
+        box.style.boxShadow = '0 0 34px rgba(255,176,32,.16), inset 0 0 34px rgba(255,176,32,.05)';
+        box.innerHTML =
+            '<div class="w-14 h-14 rounded-full bg-warn/15 flex items-center justify-center text-2xl text-warn"><i class="fa-solid fa-triangle-exclamation"></i></div>' +
+            '<div class="text-[15px] font-black text-white tracking-wide">주의 조치 권고</div>' +
+            '<div class="text-[11.5px] text-slate-400 leading-relaxed">이륙 전 자재 재장착 조치가 지시되었습니다.</div>';
+    }
 
-                let flagsHtml = '';
-                if (flags.length > 0) {
-                    flags.forEach(f => {
-                        const styleClass = f.severity === 'red' ? 'bg-brand-redDim text-brand-red border-brand-red/30' : 'bg-brand-amberDim text-brand-amber border-brand-amber/30';
-                        flagsHtml += `
-                            <div class="p-2.5 rounded border ${styleClass} text-[10px] space-y-0.5">
-                                <div class="flex justify-between font-bold">
-                                    <span><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>${f.id}</span>
-                                    <span>INTEGRITY FLAG</span>
-                                </div>
-                                <p class="text-gray-300 leading-relaxed">${f.desc}</p>
-                            </div>
-                        `;
-                    });
-                } else {
-                    flagsHtml = `
-                        <div class="p-3 rounded bg-brand-greenDim text-brand-green text-[10px] font-semibold border border-brand-green/30">
-                            <i class="fa-solid fa-check-double mr-1.5"></i> 설계 위반이 감지되지 않았습니다.
-                        </div>
-                    `;
-                }
-                valFlagsList.innerHTML = flagsHtml;
+    el('val-flags').innerHTML = flags.length
+        ? flags.map(f => {
+            const c = f.severity === 'alert'
+                ? 'bg-alert/[.07] border-alert/25 text-alert'
+                : 'bg-warn/[.07] border-warn/25 text-warn';
+            return '<div class="p-3 rounded-lg border ' + c + ' space-y-1.5">' +
+                '<div class="flex items-center justify-between text-[11px] font-black tracking-wider">' +
+                    '<span><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>' + f.id + '</span>' +
+                    '<span class="opacity-50">INTEGRITY FLAG</span>' +
+                '</div>' +
+                '<p class="text-[12px] text-slate-300 leading-relaxed">' + escapeHTML(f.desc) + '</p>' +
+            '</div>';
+        }).join('')
+        : '<div class="p-3.5 rounded-lg bg-ok/[.07] border border-ok/25 text-ok text-[12px] font-bold">' +
+          '<i class="fa-solid fa-check-double mr-1.5"></i>설계 위반이 감지되지 않았습니다.</div>';
 
-                updateTerminalLog(`<b>[Validator]</b> Integrity calculation complete. ${flags.length} flag(s) captured.`);
-                
-                startReporterPipeline(defect, matched, isViolated);
-            }, 800);
-        }
+    markTab('validator');
+}
 
-        function startReporterPipeline(defect, matched, isViolated) {
-            updatePipelineMetric('reporter', 'RUNNING', 90);
-            updateTerminalLog("<b>[ReportAgent]</b> Reassembling diagnostic results into professional documentation format...");
+function renderReport(d, m, violated) {
+    const verdict = violated ? '비행 금지 (GROUNDED)' : '정비 지시 (REINSTALL)';
+    el('r-model').textContent = el('op-model').value;
+    el('r-section').textContent = el('op-section').value;
+    el('r-source').textContent = S.source === 'camera' ? '라이브 카메라 촬영' : '이미지 파일 등록';
+    el('r-date').textContent = new Date().toLocaleString('ko-KR');
+    el('r-inspector').textContent = el('op-inspector').value;
+    el('r-verdict').textContent = verdict;
+    el('r-verdict').className = 'font-black ' + (violated ? 'text-red-600' : 'text-amber-600');
 
-            setTimeout(() => {
-                updatePipelineMetric('reporter', 'COMPLETED');
-                updateTerminalLog("<b>[MAIN_ORCHESTRATOR]</b> <span class='text-brand-green font-bold'>PIPELINE PROCESSOR SUCCESSFULLY TERMINATED.</span>");
+    el('r-summary').innerHTML =
+        '공인 기준 형상 데이터베이스에서 자동 매칭된 기준 이미지와 현장 촬영 점검 이미지를 다중 에이전트 비전 시스템으로 정밀 대조하였음. ' +
+        '분석 결과 <b>‘' + escapeHTML(d.component_name_ko) + '’</b> 영역에서 기준 형상과의 명백한 조립 상 차이가 검출되었으며, 해당 부품은 ' +
+        '<b>' + (m.flight_critical ? '비행 필수(Flight-Critical) 부품' : '보조 장비') + '</b>으로 규명됨. ' +
+        '결정론적 무결성 규칙에 기초하여 <b>[' + verdict + ']</b> 조치를 인가함.';
 
-                document.getElementById('r-date').innerText = new Date().toLocaleString();
-                document.getElementById('r-inspector').innerText = document.getElementById('input-inspector').value;
+    el('r-findings').innerHTML =
+        '<tr>' +
+            '<td class="border border-slate-300 px-2 py-1.5 font-mono text-center">' + escapeHTML(d.discrepancy_id) + '</td>' +
+            '<td class="border border-slate-300 px-2 py-1.5 font-bold">' + escapeHTML(d.component_name_ko) + '</td>' +
+            '<td class="border border-slate-300 px-2 py-1.5 text-center capitalize">' + escapeHTML(d.aircraft_side) + '</td>' +
+            '<td class="border border-slate-300 px-2 py-1.5 text-center font-bold text-red-600">' + escapeHTML(d.severity.toUpperCase()) + '</td>' +
+            '<td class="border border-slate-300 px-2 py-1.5 font-mono text-center">' + escapeHTML(m.part_number) + '</td>' +
+        '</tr>';
 
-                const statusTxt = isViolated ? "비행 금지 (GROUNDED)" : "정비 지시 (REINSTALL)";
-                const styleBadge = isViolated ? "text-brand-red font-bold" : "text-brand-amber font-bold";
-                document.getElementById('r-result-badge').innerText = statusTxt;
-                document.getElementById('r-result-badge').className = styleBadge;
+    markTab('report');
+}
 
-                document.getElementById('r-summary-text').innerHTML = `
-                    본 보고서는 기등록된 기준 정상 형상 라이브 이미지와 새로 촬영 수집된 점검 이미지를 정밀 인공지능 멀티에이전트 시스템을 적용하여 비교 점검한 내역서임. 
-                    점검 분석 결과, <b>'${defect.component_name_ko}'</b> 영역에서 기준과 명백한 조립 상 차이가 검출되었으며, <b>${matched.flight_critical ? '비행 필수(Flight-Critical) 부품' : '보조 장비'}</b> 사양으로 규명됨. 
-                    정비 안전 무결성 규칙에 기초하여 즉각적인 조치 사안인 <b>[${statusTxt}]</b> 명령을 인가함.
-                `;
+async function renderClean() {
+    AGENTS.forEach(a => setNode(a, 'done', 'COMPLETED'));
+    setRail(100);
+    el('stage').classList.add('wipe-locked');
+    setWipe(0);
 
-                document.getElementById('r-findings-table').innerHTML = `
-                    <tr>
-                        <td class="border border-gray-300 px-2 py-1 font-mono text-center">${defect.discrepancy_id}</td>
-                        <td class="border border-gray-300 px-2 py-1 font-bold">${defect.component_name_ko}</td>
-                        <td class="border border-gray-300 px-2 py-1 text-center capitalize">${defect.aircraft_side}</td>
-                        <td class="border border-gray-300 px-2 py-1 text-center text-red-600 font-bold">${defect.severity.toUpperCase()}</td>
-                        <td class="border border-gray-300 px-2 py-1 font-mono text-center">${matched.part_number}</td>
-                    </tr>
-                `;
+    el('vision-tbody').innerHTML =
+        '<tr><td colspan="5" class="px-4 py-10 text-center text-ok font-bold text-[12.5px]">' +
+        '<i class="fa-solid fa-circle-check mr-2"></i>모든 구성품 형상 매칭 통과</td></tr>';
+    el('vision-evidence').textContent = '필수 체크리스트 항목 전부가 설계 기준과 일치합니다.';
+    el('vision-json').textContent = JSON.stringify({ status: 'CLEAN', discrepancies: [] }, null, 2);
 
-                switchAnalysisTab('tab-report');
-            }, 1000);
-        }
+    const box = el('val-box');
+    box.className = 'md:col-span-2 rounded-lg bg-ok/[.07] border border-ok/30 p-6 flex flex-col items-center justify-center text-center gap-3';
+    box.style.boxShadow = '0 0 34px rgba(34,197,94,.18)';
+    box.innerHTML =
+        '<div class="w-14 h-14 rounded-full bg-ok/15 flex items-center justify-center text-2xl text-ok"><i class="fa-solid fa-shield-halved"></i></div>' +
+        '<div class="text-[15px] font-black text-white tracking-wide">무결성 통과</div>';
+    el('val-flags').innerHTML =
+        '<div class="p-3.5 rounded-lg bg-ok/[.07] border border-ok/25 text-ok text-[12px] font-bold">' +
+        '<i class="fa-solid fa-check-double mr-1.5"></i>설계 위반이 감지되지 않았습니다.</div>';
 
-        function switchAnalysisTab(tabId) {
-            document.querySelectorAll('.tab-pane').forEach(p => p.classList.add('hidden'));
-            document.getElementById(tabId).classList.remove('hidden');
+    el('r-model').textContent = el('op-model').value;
+    el('r-section').textContent = el('op-section').value;
+    el('r-source').textContent = S.source === 'camera' ? '라이브 카메라 촬영' : '이미지 파일 등록';
+    el('r-date').textContent = new Date().toLocaleString('ko-KR');
+    el('r-inspector').textContent = el('op-inspector').value;
+    el('r-verdict').textContent = '비행 가용 (CLEAN)';
+    el('r-verdict').className = 'font-black text-emerald-600';
+    el('r-summary').textContent = '점검 대상 조립 형상이 공인 기준 모델과 허용 오차 범위 내에서 일치하여 비행 가용 판정을 인가합니다.';
+    el('r-findings').innerHTML =
+        '<tr><td colspan="5" class="border border-slate-300 px-2 py-3 text-center text-slate-500">검출된 이상 없음</td></tr>';
 
-            document.querySelectorAll('[id^="btn-tab-"]').forEach(btn => {
-                btn.className = "flex-1 px-4 py-3 font-semibold uppercase text-gray-400 hover:text-gray-200 transition flex items-center justify-center space-x-1.5 border-b-2 border-transparent";
-            });
+    log('<b>[ORCHESTRATOR]</b> <b class="text-ok">이상 없음 — 비행 가용.</b>');
+    await wait(300);
+    showVerdictClean();
+}
 
-            const activeBtn = document.getElementById(`btn-tab-${tabId.replace('tab-', '')}`);
-            activeBtn.className = "flex-1 px-4 py-3 font-semibold uppercase text-brand-cyan border-b-2 border-brand-cyan bg-brand-card transition flex items-center justify-center space-x-1.5";
-        }
+/* ═══════════════════════════════════════════════════════════════
+   ACT 4 — 판정 슬램
+═══════════════════════════════════════════════════════════════ */
+function paintVerdict(hex, iconClass, title, sub) {
+    el('verdict-title').textContent = title;
+    el('verdict-title').style.color = hex;
+    el('verdict-title').style.textShadow = '0 0 90px ' + hex + '66';
+    el('verdict-sub').textContent = sub;
+    el('verdict-sub').style.color = hex;
+    el('verdict-icon').style.cssText =
+        'background:' + hex + '1f; color:' + hex + '; box-shadow: 0 0 60px ' + hex + '4d;';
+    el('verdict-icon').innerHTML = '<i class="fa-solid ' + iconClass + '"></i>';
+    el('verdict-rule').style.background = 'linear-gradient(90deg, transparent, ' + hex + ', transparent)';
+}
 
-        function copyDocumentToClipboard() {
-            const summaryText = `AEROINSPECT 항공정비 기체 검출 레포트 요약\n점검시각: ${new Date().toLocaleString()}\n검증기술자: ${document.getElementById('input-inspector').value}\n최종판정: ${document.getElementById('r-result-badge').innerText}\n${document.getElementById('r-summary-text').innerText}`;
-            
-            const textarea = document.createElement('textarea');
-            textarea.value = summaryText;
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
+function showVerdict(d, m, violated) {
+    setPhase('verdict');
+    const hex = violated ? '#FF3B3B' : '#FFB020';
 
-            const toast = document.createElement('div');
-            toast.className = "fixed bottom-5 right-5 bg-brand-cyan text-black px-4 py-3 rounded-lg shadow-lg font-bold text-xs flex items-center z-50 animate-bounce";
-            toast.innerHTML = `<i class="fa-solid fa-copy mr-1.5"></i> <span>클립보드에 보고서 요약본이 복사되었습니다!</span>`;
-            document.body.appendChild(toast);
+    paintVerdict(
+        hex,
+        violated ? 'fa-ban' : 'fa-triangle-exclamation',
+        violated ? 'NO-GO' : 'HOLD',
+        violated ? '비행 금지 · GROUNDED' : '이륙 전 재장착 · REINSTALL'
+    );
 
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
-        }
-    </script>
+    el('verdict-part').textContent = d.component_name_ko + ' 누락';
+    el('verdict-reason').textContent = d.evidence;
+
+    el('verdict-meta').innerHTML = [
+        ['fa-barcode', m.part_number],
+        ['fa-gauge-high', '신뢰도 ' + Math.round(d.confidence * 100) + '%'],
+        [m.flight_critical ? 'fa-circle-exclamation' : 'fa-circle-info', m.flight_critical ? 'Flight-Critical' : 'Normal Accessory'],
+        ['fa-clipboard-check', DISPOSITION_LABEL[m.disposition_if_missing] || m.disposition_if_missing]
+    ].map(pair =>
+        '<span class="px-3 py-1.5 rounded-full border border-white/[.12] bg-white/[.04] text-[11.5px] font-semibold text-slate-300">' +
+        '<i class="fa-solid ' + pair[0] + ' mr-1.5 text-slate-500"></i>' + escapeHTML(pair[1]) + '</span>'
+    ).join('');
+
+    openVerdict();
+    setStatus(violated ? 'NO-GO' : 'HOLD', violated ? 'alert' : 'warn');
+}
+
+function showVerdictClean() {
+    setPhase('verdict');
+    paintVerdict('#22C55E', 'fa-circle-check', 'GO', '비행 가용 · AIRWORTHY');
+    el('verdict-part').textContent = '형상 불일치가 검출되지 않았습니다';
+    el('verdict-reason').textContent = '점검 대상 조립 형상이 공인 기준 모델과 허용 오차 범위 내에서 일치합니다.';
+    el('verdict-meta').innerHTML = '';
+    openVerdict();
+    setStatus('GO', 'ok');
+}
+
+function openVerdict() {
+    const v = el('verdict');
+    v.classList.remove('hidden');
+    v.classList.add('flex');
+    document.body.classList.add('verdict-open');
+
+    const card = el('verdict-card');
+    card.classList.remove('verdict-slam');
+    void card.offsetWidth;
+    card.classList.add('verdict-slam');
+
+    const rule = el('verdict-rule');
+    rule.classList.remove('rule-draw');
+    void rule.offsetWidth;
+    rule.classList.add('rule-draw');
+}
+
+function closeVerdict(then) {
+    el('verdict').classList.add('hidden');
+    el('verdict').classList.remove('flex');
+    document.body.classList.remove('verdict-open');
+    if (then === 'report') {
+        switchTab('report');
+        el('pane-report').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   UI 유틸
+═══════════════════════════════════════════════════════════════ */
+const TONE = { focus: '#00E5FF', ok: '#22C55E', warn: '#FFB020', alert: '#FF3B3B' };
+
+function setStatus(text, tone) {
+    el('status-text').textContent = text;
+    const c = TONE[tone] || '#64748b';
+    el('status-pill').style.cssText =
+        'border-color:' + c + '40; background:' + c + '14; color:' + c + ';';
+    el('status-pill').querySelector('span').style.cssText =
+        'background:' + c + '; box-shadow: 0 0 8px ' + c + ';';
+}
+
+function setPhase(p) {
+    const order = ['identify', 'retrieve', 'analyze', 'verdict'];
+    const idx = order.indexOf(p);
+    document.querySelectorAll('.phase-pill').forEach(n => {
+        const i = order.indexOf(n.dataset.phase);
+        if (i < idx)        n.className = 'phase-pill px-2.5 py-1 rounded text-slate-500';
+        else if (i === idx) n.className = 'phase-pill px-2.5 py-1 rounded bg-focus/[.12] text-focus';
+        else                n.className = 'phase-pill px-2.5 py-1 rounded text-slate-600';
+    });
+}
+
+function setNode(agent, state, label) {
+    const n = document.querySelector('.agent-node[data-agent="' + agent + '"]');
+    n.dataset.state = state;
+    n.querySelector('.node-state').textContent = label;
+    if (state === 'done') n.querySelector('.node-dot').innerHTML = '<i class="fa-solid fa-check text-[13px]"></i>';
+}
+
+function setRail(pct) { el('rail-fill').style.width = pct + '%'; }
+
+function startClock() {
+    S.t0 = Date.now();
+    stopClock();
+    S.clockTimer = setInterval(() => {
+        el('pipeline-clock').textContent = ((Date.now() - S.t0) / 1000).toFixed(1) + 's';
+    }, 100);
+}
+function stopClock() { if (S.clockTimer) { clearInterval(S.clockTimer); S.clockTimer = null; } }
+
+function tabClass(name, active) {
+    const isLog = name === 'log';
+    return 'relative ' + (isLog ? 'px-4' : 'flex-1 px-4') + ' py-3.5 font-bold tracking-wide ' +
+           (active ? 'text-focus border-b-2 border-focus ' : 'text-slate-500 hover:text-slate-300 border-b-2 border-transparent ') +
+           (isLog ? 'hidden md:flex' : 'flex') + ' items-center justify-center gap-2';
+}
+
+function switchTab(name) {
+    document.querySelectorAll('.pane').forEach(p => p.classList.add('hidden'));
+    const pane = el('pane-' + name);
+    pane.classList.remove('hidden');
+    if (name === 'vision') pane.classList.add('grid');
+
+    ['vision', 'grounding', 'validator', 'report', 'log'].forEach(t => {
+        const b = el('tab-btn-' + t);
+        if (!b) return;
+        const wasNew = b.classList.contains('tab-new');
+        b.className = tabClass(t, t === name);
+        if (wasNew && t !== name) b.classList.add('tab-new');
+    });
+}
+
+function markTab(name) {
+    const b = el('tab-btn-' + name);
+    if (b && el('pane-' + name).classList.contains('hidden')) b.classList.add('tab-new');
+}
+
+function log(msg) {
+    const t = el('terminal');
+    const d = document.createElement('div');
+    d.innerHTML = '<span class="text-slate-600">' +
+                  new Date().toLocaleTimeString('ko-KR', { hour12: false }) + '</span> ' + msg;
+    t.appendChild(d);
+    t.scrollTop = t.scrollHeight;
+}
+
+function syncKeyStatus(k) {
+    const dot = el('op-key-dot');
+    const note = el('mode-note');
+    if (k.startsWith('AIzaSy')) {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-ok shrink-0';
+        dot.style.boxShadow = '0 0 8px #22C55E';
+        note.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-ok"></span>추론 엔진: Gemini 실시간 연동';
+        log('[SYSTEM] Gemini API Key 감지됨. 실시간 멀티모달 분석이 활성화됩니다.');
+    } else if (!k) {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-slate-600 shrink-0';
+        dot.style.boxShadow = 'none';
+        note.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>추론 엔진: 내장 시뮬레이션';
+    } else {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-alert shrink-0';
+        dot.style.boxShadow = '0 0 8px #FF3B3B';
+        note.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-alert"></span>추론 엔진: 잘못된 API Key 규격';
+    }
+}
+
+function toggleOperator() { el('operator').classList.toggle('open'); }
+
+function escapeHTML(s) {
+    return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, c =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   리셋 / 단축키 / 복사
+═══════════════════════════════════════════════════════════════ */
+function resetResults() {
+    AGENTS.forEach((a, i) => {
+        const n = document.querySelector('.agent-node[data-agent="' + a + '"]');
+        n.dataset.state = 'idle';
+        n.querySelector('.node-state').textContent = 'READY';
+        n.querySelector('.node-dot').textContent = '0' + (i + 1);
+    });
+    setRail(0);
+    el('stage').classList.remove('wipe-locked');   // 재점검 시 분할선을 되살린다
+    el('bbox').classList.add('hidden');
+    el('bbox').classList.remove('slam');
+    el('pipeline-clock').textContent = '--:--';
+    el('vision-tbody').innerHTML =
+        '<tr><td colspan="5" class="px-4 py-10 text-center text-slate-600 text-[12px]">' +
+        '<i class="fa-solid fa-spinner fa-spin mr-2"></i>분석 중...</td></tr>';
+    el('vision-json').textContent = '{}';
+}
+
+function resetAll() {
+    stopCamera();
+    // 기준 형상(S.baseline)은 DB 매칭 시뮬레이션이므로 의도적으로 유지한다.
+    S.inspection = null; S.source = null; S.drawnBBox = null;
+    S.lastDefect = null; S.running = false;
+    stopClock();
+
+    el('img-inspection').src = '';
+    el('stage').classList.add('stage-idle');
+    el('stage').classList.remove('scanning', 'wipe-locked');
+    el('dropzone').classList.remove('hidden');
+    el('id-chips').innerHTML = '';
+    el('stamp').classList.add('hidden');
+    el('btn-reset').classList.add('hidden');
+    el('stage-hint').textContent = '점검 대상 사진을 등록하면 자동으로 시작됩니다';
+    setWipe(50);
+    resetResults();
+    armRunButton(false);
+    el('btn-run-text').textContent = '점검 개시';
+    setStatus('STANDBY', null);
+    document.querySelectorAll('.phase-pill').forEach(n => {
+        n.className = 'phase-pill px-2.5 py-1 rounded text-slate-600';
+    });
+    closeVerdict();
+    switchTab('vision');
+    log('[SYSTEM] 터미널 초기화 완료.');
+}
+
+function initKeys() {
+    window.addEventListener('keydown', e => {
+        const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+        if (e.key === '`' || e.key === '~') { e.preventDefault(); toggleOperator(); return; }
+        if (e.key === 'Escape') { closeVerdict(); return; }
+        if (typing) return;
+        if (e.code === 'Space') { e.preventDefault(); if (!el('btn-run').disabled) runPipeline(); }
+        if (e.key === 'r' || e.key === 'R') resetAll();
+    });
+}
+
+function copyReport() {
+    const text =
+        'AEROINSPECT 감항 검증 보고서\n' +
+        '────────────────────────────\n' +
+        '기종       : ' + el('r-model').textContent + '\n' +
+        '점검 부위  : ' + el('r-section').textContent + '\n' +
+        '점검 일시  : ' + el('r-date').textContent + '\n' +
+        '담당 정비사: ' + el('r-inspector').textContent + '\n' +
+        '최종 판정  : ' + el('r-verdict').textContent + '\n\n' +
+        el('r-summary').textContent + '\n\n' +
+        '※ 본 보고서는 데모 목적의 산출물로, 실제 감항성 판단에 사용할 수 없습니다.';
+
+    const toast = () => {
+        const t = document.createElement('div');
+        t.className = 'fixed bottom-6 right-6 z-[200] px-4 py-3 rounded-lg bg-white text-ink-900 font-bold text-[12.5px] shadow-2xl';
+        t.innerHTML = '<i class="fa-solid fa-check mr-1.5"></i>보고서가 클립보드에 복사되었습니다';
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 2400);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(toast).catch(toast);
+    } else {
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); ta.remove(); toast();
+    }
+}
+</script>
 </body>
 </html>
