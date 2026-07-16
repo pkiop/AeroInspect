@@ -39,6 +39,9 @@ STAGE_LABELS: dict[str, str] = {
     "report": "4️⃣ Report — 보고서 생성",
 }
 
+#: 단계 순서 (실패 시 후속 카드 처리용)
+STAGE_ORDER: tuple[str, ...] = ("vision", "grounding", "validation", "report")
+
 #: Discrepancy 유형 → 한국어 라벨
 DISCREPANCY_TYPE_LABELS: dict[str, str] = {
     "missing_part": "부품 누락",
@@ -374,6 +377,16 @@ def _make_progress_callback(
             with box:
                 st.error(f"{STAGE_LABELS[event.stage]} 단계 실패: {event.message}")
             box.update(state="error", expanded=True)
+            # 후속 단계 카드가 영구 스피너로 남지 않도록 '미실행' 처리
+            failed_pos = STAGE_ORDER.index(event.stage)
+            for later_stage in STAGE_ORDER[failed_pos + 1 :]:
+                later_box = status_boxes.get(later_stage)
+                if later_box is not None:
+                    later_box.update(
+                        label=f"{STAGE_LABELS[later_stage]} — 이전 단계 실패로 미실행",
+                        state="error",
+                        expanded=False,
+                    )
 
     return _callback
 
