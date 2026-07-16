@@ -252,3 +252,18 @@ def test_pipeline_e2e_smoke(
     for artifact in ("vision.json", "grounding.json", "validation.json"):
         assert (run_dir / artifact).is_file(), f"{artifact} 이 run_dir에 없음"
 
+
+# ---------------------------------------------------------------------------
+# 2) 카탈로그 ↔ 레지스트리 일치성
+# ---------------------------------------------------------------------------
+
+
+def test_catalog_registry_consistency() -> None:
+    """data/parts_catalog/*.md 가 6개이며, 레지스트리의 모든 P/N·부품명을 담는지 검증."""
+    md_files = sorted(config.CATALOG_DIR.glob("*.md"))
+    assert len(md_files) == 6, f"카탈로그 파일은 6개여야 함 (현재 {len(md_files)}개)"
+
+    full_text = "\n".join(p.read_text(encoding="utf-8") for p in md_files)
+    for part in config.PARTS_REGISTRY:
+        assert part.part_number in full_text, f"카탈로그에 P/N 누락: {part.part_number}"
+        assert part.name_ko in full_text, f"카탈로그에 부품명 누락: {part.name_ko}"
