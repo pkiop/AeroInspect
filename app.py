@@ -153,9 +153,11 @@ def _build_sidebar() -> dict[str, Any]:
             accept_multiple_files=True,
             key="baseline_uploader",
         )
-        if baseline_files:
-            st.session_state["baseline_images"] = [f.getvalue() for f in baseline_files]
-        baseline_images: list[bytes] = st.session_state.get("baseline_images", [])
+        # 업로더 현재 상태와 항상 동기화 — 파일을 제거하면 등록도 해제된다.
+        st.session_state["baseline_images"] = (
+            [f.getvalue() for f in baseline_files] if baseline_files else []
+        )
+        baseline_images: list[bytes] = st.session_state["baseline_images"]
         st.caption(f"등록된 기준 이미지: {len(baseline_images)}장")
         if baseline_images:
             st.image(baseline_images, width=88)
