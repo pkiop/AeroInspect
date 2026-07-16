@@ -106,7 +106,11 @@ class Validator:
         if record.found is False:
             flags.append("UNKNOWN_COMPONENT")
             current = adjusted if adjusted is not None else record
-            if current.disposition_if_missing != "engineering_review":
+            # 규칙 3이 상향한 ground_aircraft(더 보수적 조치)는 하향하지 않는다.
+            if current.disposition_if_missing not in (
+                "engineering_review",
+                "ground_aircraft",
+            ):
                 _ensure_adjusted().disposition_if_missing = "engineering_review"
 
         # --- 규칙 5: 좌/우 혼동 결정론 체크 -------------------------------
