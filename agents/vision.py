@@ -11,8 +11,11 @@ LLM이 아닌 이 에이전트가 파싱 후 ``D-001`` 형식으로 순서대로
 
 from __future__ import annotations
 
+import io
 import logging
 from typing import Any
+
+from PIL import Image
 
 from core import llm
 from core.config import PART_CHECKLIST
@@ -24,6 +27,11 @@ logger = logging.getLogger("aeroinspect.vision")
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 #: JPEG SOI 마커
 _JPEG_MAGIC = b"\xff\xd8\xff"
+
+#: 전송 전 이미지 축소 기준 — 긴 변 최대 픽셀 (Gemini 요청 20MB 한도 대비)
+_MAX_IMAGE_SIDE = 1536
+#: 재인코딩 JPEG 품질
+_JPEG_QUALITY = 85
 
 #: 시스템 프롬프트 — 오탐 억제 규칙을 포함한 판독 지침
 _SYSTEM_INSTRUCTION = """\
@@ -48,6 +56,30 @@ _SYSTEM_INSTRUCTION = """\
    이미지를 기준으로 좌표를 산출하고, 그 이미지가 목록에서 몇 번째인지(0부터)
    inspection_image_index / baseline_image_index에 기록할 것.
 """
+
+
+def _prepare_image(data: bytes) -> bytes:
+    """전송 전 이미지를 축소·재인코딩한다.
+
+    고해상도 휴대폰 사진 여러 장이 인라인 전송 한도(20MB)를 넘지 않도록,
+    긴 변이 ``_MAX_IMAGE_SIDE`` 를 초과하면 비율을 유지해 축소하고 JPEG로
+    재인코딩한다. 디코딩 실패 시(지원 외 포맷 등) 원본을 그대로 반환한다.
+    """
+    try:
+        image = Image.open(io.BytesIO(data))
+        if max(image.size) <= _MAX_IMAGE_SIDE and len(data) < 2_000_000:
+            return data
+        image.thumbnail((_MAX_IMAGE_SIDE, _MAX_IMAGE_SIDE))
+        buf = io.BytesIO()
+        image.convert("RGB").save(buf, format="JPEG", quality=_JPEG_QUALITY)
+        resized = buf.getvalue()
+        logger.info(
+            "이미지 축소: %.1fMB → %.1fMB", len(data) / 1e6, len(resized) / 1e6
+        )
+        return resized
+    except Exception:  # noqa: BLE001 — 축소 실패는 원본 전송으로 폴백
+        logger.warning("이미지 축소 실패 — 원본 전송", exc_info=True)
+        return data
 
 
 def _detect_mime(data: bytes) -> str:
@@ -151,11 +183,19 @@ class VisionAgent:
             f"{_checklist_text()}"
         )
 
+        prepared_baseline = [_prepare_image(img) for img in baseline_images]
+        prepared_inspection = [_prepare_image(img) for img in inspection_images]
         contents: list[Any] = [
-            f"다음은 기준(정상 상태) 이미지 {len(baseline_images)}장:",
-            *(llm.image_part(img, mime_type=_detect_mime(img)) for img in baseline_images),
-            f"다음은 점검 이미지 {len(inspection_images)}장:",
-            *(llm.image_part(img, mime_type=_detect_mime(img)) for img in inspection_images),
+            f"다음은 기준(정상 상태) 이미지 {len(prepared_baseline)}장:",
+            *(
+                llm.image_part(img, mime_type=_detect_mime(img))
+                for img in prepared_baseline
+            ),
+            f"다음은 점검 이미지 {len(prepared_inspection)}장:",
+            *(
+                llm.image_part(img, mime_type=_detect_mime(img))
+                for img in prepared_inspection
+            ),
             instruction,
         ]
         return contents
