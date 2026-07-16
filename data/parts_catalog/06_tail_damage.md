@@ -142,7 +142,7 @@ Flight Critical 품목이므로 손상 판정 시 본 문서의 조치 기준을
 - **장착 위치(좌/우)**: 우측 (right)
 - **Flight Critical**: 예
 - **손상 시 조치**: 한계 초과 시 비행 금지 및 지상 계류 (ground_aircraft)
-- **참조 SB**: SB-DEMO-2025-011
+- **참조 SB**: SB-DEMO-2025-031
 - **누락 시 조치 및 장착 절차**: AI-IPC-DEMO-01 참조
 
 ### 손상 시 영향
@@ -165,7 +165,7 @@ Flight Critical 품목이므로 손상 판정 시 본 문서의 조치 기준을
 - **장착 위치(좌/우)**: 좌측 (left)
 - **Flight Critical**: 예
 - **손상 시 조치**: 한계 초과 시 비행 금지 및 지상 계류 (ground_aircraft)
-- **참조 SB**: SB-DEMO-2025-012
+- **참조 SB**: SB-DEMO-2025-032
 - **누락 시 조치 및 장착 절차**: AI-IPC-DEMO-01 참조
 
 ### 손상 시 영향
@@ -185,7 +185,7 @@ Flight Critical 품목이므로 손상 판정 시 본 문서의 조치 기준을
 - **장착 위치(좌/우)**: 우측 (right)
 - **Flight Critical**: 예
 - **손상 시 조치**: 한계 초과 시 비행 금지 및 지상 계류 (ground_aircraft)
-- **참조 SB**: SB-DEMO-2025-013
+- **참조 SB**: SB-DEMO-2025-033
 - **누락 시 조치 및 장착 절차**: AI-IPC-DEMO-01 참조
 
 ### 손상 시 영향
@@ -207,7 +207,7 @@ Flight Critical 품목이므로 손상 판정 시 본 문서의 조치 기준을
 - **장착 위치(좌/우)**: 좌측 (left)
 - **Flight Critical**: 예
 - **손상 시 조치**: 한계 초과 시 비행 금지 및 지상 계류 (ground_aircraft)
-- **참조 SB**: SB-DEMO-2025-014
+- **참조 SB**: SB-DEMO-2025-034
 - **누락 시 조치 및 장착 절차**: AI-IPC-DEMO-01 참조
 
 ### 손상 시 영향
