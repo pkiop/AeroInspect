@@ -31,14 +31,6 @@ from core.schemas import (
 # 상수 (표시용 라벨)
 # ---------------------------------------------------------------------------
 
-#: 사이드바에서 선택 가능한 Gemini 모델 옵션
-MODEL_OPTIONS: list[str] = [
-    "gemini-3.1-pro",
-    "gemini-3.1-pro-preview",
-    "gemini-3.5-flash",
-    "gemini-2.5-flash",
-]
-
 #: 파이프라인 단계 → 카드 제목
 STAGE_LABELS: dict[str, str] = {
     "vision": "1️⃣ Vision — 형상 비교 판독",
@@ -83,9 +75,19 @@ ORANGE_FLAGS: frozenset[str] = frozenset({"REVIEW_REQUIRED", "UNGROUNDED"})
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
-def _default_model_index(model_name: str) -> int:
+def _default_model_index(model_name: str, options: list[str]) -> int:
     """설정된 기본 모델의 옵션 인덱스를 찾는다 (목록에 없으면 0)."""
-    return MODEL_OPTIONS.index(model_name) if model_name in MODEL_OPTIONS else 0
+    return options.index(model_name) if model_name in options else 0
+
+
+@st.cache_resource(show_spinner="모델 가용성 확인 중…")
+def _startup_models() -> tuple[dict[str, str], set[str] | None]:
+    """앱 시작 시 1회: models.list() 가용성 확인 + 폴백된 기본 모델 결정.
+
+    반환: (resolve_models() 결과, 가용 모델 ID 집합 — 조회 실패 시 None)
+    """
+    available = config.list_available_models()
+    return config.resolve_models(available=available), available
 
 
 # ---------------------------------------------------------------------------
@@ -95,21 +97,39 @@ def _default_model_index(model_name: str) -> int:
 
 def _build_sidebar() -> dict[str, Any]:
     """사이드바(모델/임계값/점검자/File Search 상태/기준 이미지)를 그리고 설정값을 반환한다."""
+    resolved_models, available_models = _startup_models()
+    model_options = config.model_options()
+
     with st.sidebar:
         st.header("⚙️ 설정")
 
         vision_model = st.selectbox(
             "Vision 모델",
-            MODEL_OPTIONS,
-            index=_default_model_index(config.VISION_MODEL),
+            model_options,
+            index=_default_model_index(resolved_models["vision"], model_options),
             help="형상 비교 판독(멀티모달)에 사용할 모델",
         )
         text_model = st.selectbox(
             "텍스트 모델 (Grounding·Report)",
-            MODEL_OPTIONS,
-            index=_default_model_index(config.GROUNDING_MODEL),
+            model_options,
+            index=_default_model_index(resolved_models["grounding"], model_options),
             help="카탈로그 검색과 보고서 서술 생성에 사용할 모델",
         )
+        if available_models is not None:
+            unavailable = [
+                m for m in {vision_model, text_model} if m not in available_models
+            ]
+            if unavailable:
+                st.warning(
+                    "선택한 모델이 현재 계정에서 확인되지 않습니다: "
+                    + ", ".join(sorted(unavailable))
+                    + " — 실행 시 오류가 날 수 있습니다."
+                )
+        if resolved_models["vision"] != config.VISION_MODEL:
+            st.caption(
+                f"⚠️ 기본 Vision 모델 '{config.VISION_MODEL}' 미가용 — "
+                f"'{resolved_models['vision']}' 로 폴백되었습니다."
+            )
         confidence_threshold = st.slider(
             "Confidence 임계값",
             min_value=0.0,

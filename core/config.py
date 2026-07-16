@@ -51,6 +51,33 @@ FILE_SEARCH_STORE_NAME: str | None = os.getenv("AEROINSPECT_FILE_SEARCH_STORE") 
 #: Gemini 호출 타임아웃(ms) — google-genai http_options.timeout 단위
 REQUEST_TIMEOUT_MS: int = int(os.getenv("AEROINSPECT_REQUEST_TIMEOUT_MS", "120000"))
 
+#: UI 모델 선택 기본 후보 (환경변수 AEROINSPECT_MODEL_OPTIONS로 재정의 가능, 쉼표 구분)
+MODEL_OPTIONS: tuple[str, ...] = tuple(
+    m.strip()
+    for m in os.getenv(
+        "AEROINSPECT_MODEL_OPTIONS",
+        "gemini-3.1-pro,gemini-3.1-pro-preview,gemini-3.5-flash,gemini-2.5-flash",
+    ).split(",")
+    if m.strip()
+)
+
+
+def model_options() -> list[str]:
+    """UI 모델 선택 옵션 — 설정된 모델을 항상 포함한다 (중복 제거, 순서 유지).
+
+    .env로 지정한 모델(VISION_MODEL 등)이 기본 후보 목록에 없어도
+    선택 가능해야 하므로 목록 앞쪽에 합류시킨다.
+    """
+    candidates = [VISION_MODEL, GROUNDING_MODEL, REPORT_MODEL, VISION_FALLBACK_MODEL]
+    candidates.extend(MODEL_OPTIONS)
+    seen: set[str] = set()
+    options: list[str] = []
+    for name in candidates:
+        if name and name not in seen:
+            seen.add(name)
+            options.append(name)
+    return options
+
 
 @lru_cache(maxsize=1)
 def get_client() -> genai.Client:
@@ -62,22 +89,37 @@ def get_client() -> genai.Client:
     return genai.Client()
 
 
-def resolve_models() -> dict[str, str]:
+def list_available_models() -> set[str] | None:
+    """``client.models.list()`` 로 가용 모델 ID 집합을 조회한다.
+
+    조회 실패(네트워크/키 미설정 등) 시 None을 반환한다 — 치명적이지 않음.
+    """
+    try:
+        return {
+            m.name.removeprefix("models/")
+            for m in get_client().models.list()
+            if m.name
+        }
+    except Exception as exc:  # noqa: BLE001 — 가용성 확인 실패는 치명적이지 않음
+        logger.warning("모델 목록 조회 실패: %s", exc)
+        return None
+
+
+def resolve_models(available: set[str] | None = None) -> dict[str, str]:
     """앱 시작 시 모델 가용성을 확인하고, 미가용 시 폴백한다.
+
+    Args:
+        available: 이미 조회해 둔 가용 모델 집합 (None이면 직접 조회).
 
     반환: ``{"vision": ..., "grounding": ..., "report": ...}``
     ``client.models.list()`` 실패(네트워크 등) 시에는 설정값을 그대로
     신뢰하고 경고만 남긴다.
     """
     vision, grounding, report = VISION_MODEL, GROUNDING_MODEL, REPORT_MODEL
-    try:
-        available = {
-            m.name.removeprefix("models/")
-            for m in get_client().models.list()
-            if m.name
-        }
-    except Exception as exc:  # noqa: BLE001 — 가용성 확인 실패는 치명적이지 않음
-        logger.warning("모델 목록 조회 실패 — 설정된 모델명을 그대로 사용: %s", exc)
+    if available is None:
+        available = list_available_models()
+    if available is None:
+        logger.warning("가용성 확인 불가 — 설정된 모델명을 그대로 사용")
         return {"vision": vision, "grounding": grounding, "report": report}
 
     def _pick(name: str, fallback: str, role: str) -> str:
