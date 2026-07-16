@@ -26,7 +26,6 @@ logger = logging.getLogger("aeroinspect.config")
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_DIR = PROJECT_ROOT / "data" / "parts_catalog"
 RUNS_DIR = PROJECT_ROOT / "runs"
-REPORTS_DIR = PROJECT_ROOT / "reports"
 LOGS_DIR = PROJECT_ROOT / "logs"
 
 load_dotenv(PROJECT_ROOT / ".env")

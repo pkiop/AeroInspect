@@ -4,7 +4,7 @@
 
 - Vision → Grounding(폴백 경로) → Validator → Report 전체 파이프라인 동작
 - ``discrepancy_id`` 자동 부여(D-001), ESCALATED 상향, ``via_fallback`` 표시
-- ``.docx`` 보고서 파일 생성 및 ``runs/`` 산출물 저장
+- 보고서 서술(개요/종합 의견) 생성 및 ``runs/`` 산출물 저장
 - ``PipelineEvent`` 발행 순서
 - 카탈로그 ↔ ``config.PARTS_REGISTRY`` 일치성
 - Validator 결정론 규칙(플래그) 단위 동작
@@ -155,30 +155,22 @@ def mock_llm(monkeypatch: pytest.MonkeyPatch) -> dict[str, int]:
 
 
 @pytest.fixture
-def isolated_output(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> tuple[Path, Path]:
-    """RUNS_DIR/REPORTS_DIR를 tmp_path 하위로 격리한다.
+def isolated_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """RUNS_DIR를 tmp_path 하위로 격리한다.
 
     ``from core import config`` 후 속성 접근 방식과
     ``from core.config import RUNS_DIR`` 방식(모듈 상수 재바인딩) 모두를
     커버하기 위해 관련 모듈 속성도 함께 교체한다(raising=False).
     """
     runs_dir = tmp_path / "runs"
-    reports_dir = tmp_path / "reports"
     runs_dir.mkdir()
-    reports_dir.mkdir()
 
     monkeypatch.setattr(config, "RUNS_DIR", runs_dir)
-    monkeypatch.setattr(config, "REPORTS_DIR", reports_dir)
 
-    import agents.reporter as reporter_module
     import core.orchestrator as orchestrator_module
 
     monkeypatch.setattr(orchestrator_module, "RUNS_DIR", runs_dir, raising=False)
-    monkeypatch.setattr(orchestrator_module, "REPORTS_DIR", reports_dir, raising=False)
-    monkeypatch.setattr(reporter_module, "REPORTS_DIR", reports_dir, raising=False)
-    return runs_dir, reports_dir
+    return runs_dir
 
 
 # ---------------------------------------------------------------------------
@@ -186,9 +178,7 @@ def isolated_output(
 # ---------------------------------------------------------------------------
 
 
-def test_pipeline_e2e_smoke(
-    mock_llm: dict[str, int], isolated_output: tuple[Path, Path]
-) -> None:
+def test_pipeline_e2e_smoke(mock_llm: dict[str, int], isolated_output: Path) -> None:
     """mock Gemini로 4단계 파이프라인 전체를 관통 실행한다."""
     from core.orchestrator import Orchestrator
 
@@ -218,13 +208,10 @@ def test_pipeline_e2e_smoke(
     # --- Grounding: store_name=None 이므로 폴백 경로 사용 표시 ---
     assert item.part_record.via_fallback is True
 
-    # --- 보고서: .docx 파일 실존 + 크기 > 0 ---
-    assert result.report_path is not None
-    report_path = Path(result.report_path)
-    assert report_path.suffix == ".docx"
-    assert report_path.is_file()
-    assert report_path.stat().st_size > 0
+    # --- 보고서 서술: 개요/종합 의견 생성 ---
     assert result.narrative is not None
+    assert result.narrative.overview
+    assert result.narrative.overall_opinion
 
     # --- PipelineEvent 발행 순서 ---
     assert [(e.stage, e.status) for e in events] == [
@@ -249,7 +236,7 @@ def test_pipeline_e2e_smoke(
     # --- runs/<timestamp>/ 단계별 산출물 저장 ---
     assert result.run_dir is not None
     run_dir = Path(result.run_dir)
-    for artifact in ("vision.json", "grounding.json", "validation.json"):
+    for artifact in ("vision.json", "grounding.json", "validation.json", "narrative.json"):
         assert (run_dir / artifact).is_file(), f"{artifact} 이 run_dir에 없음"
 
 
@@ -358,15 +345,12 @@ def test_validator_rules() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_pipeline_repeated_runs(
-    mock_llm: dict[str, int], isolated_output: tuple[Path, Path]
-) -> None:
+def test_pipeline_repeated_runs(mock_llm: dict[str, int], isolated_output: Path) -> None:
     """같은 프로세스에서 파이프라인을 연속 실행해도 실패하지 않아야 한다.
 
     회귀 방지: 실행마다 asyncio.run으로 이벤트 루프를 만들고 닫으면
     genai 비동기 클라이언트의 커넥션 풀이 닫힌 루프에 남아 두 번째
     실행부터 'Event loop is closed'가 발생했다 (Streamlit 재클릭 시나리오).
-    또한 같은 분(minute) 내 재실행 시 보고서 파일명이 충돌하지 않아야 한다.
     """
     from core.orchestrator import Orchestrator
 
@@ -378,12 +362,7 @@ def test_pipeline_repeated_runs(
     baseline_images = [_solid_jpeg((88, 108, 138))]
     inspection_images = [_solid_jpeg((100, 120, 150))]
 
-    report_paths = set()
     for _ in range(2):
         result = orchestrator.run(baseline_images, inspection_images)
         assert len(result.items) == 1
-        assert result.report_path is not None
-        report_paths.add(result.report_path)
-
-    # 보고서 경로가 실행마다 달라야 한다 (덮어쓰기 금지)
-    assert len(report_paths) == 2
+        assert result.narrative is not None
