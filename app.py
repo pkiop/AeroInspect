@@ -447,12 +447,13 @@ def main() -> None:
 
     # --- 점검 이미지 입력 (카메라 / 파일 업로드 병행) ---
     st.subheader("점검 이미지 입력")
-    inspection_images: list[bytes] = []
+    camera_shots: list[bytes] = []
+    upload_shots: list[bytes] = []
     tab_camera, tab_upload = st.tabs(["📷 카메라 촬영", "📁 파일 업로드"])
     with tab_camera:
         shot = st.camera_input("점검 대상 촬영")
         if shot is not None:
-            inspection_images.append(shot.getvalue())
+            camera_shots.append(shot.getvalue())
     with tab_upload:
         uploads = st.file_uploader(
             "점검 이미지 업로드 (jpg/png, 다중 선택 가능)",
@@ -461,8 +462,19 @@ def main() -> None:
             key="inspection_uploader",
         )
         if uploads:
-            inspection_images.extend(f.getvalue() for f in uploads)
-    st.caption(f"준비된 점검 이미지: {len(inspection_images)}장")
+            upload_shots.extend(f.getvalue() for f in uploads)
+
+    # 카메라 촬영본과 업로드본이 조용히 합쳐지지 않도록 최종 세트를 눈에 보이게 표시
+    inspection_images: list[bytes] = camera_shots + upload_shots
+    if inspection_images:
+        st.caption(
+            f"이번 점검에 사용할 이미지 {len(inspection_images)}장 "
+            f"(카메라 {len(camera_shots)}장 + 업로드 {len(upload_shots)}장) — "
+            "카메라 촬영본을 빼려면 촬영 탭에서 사진을 지우세요(Clear photo)."
+        )
+        st.image(inspection_images, width=88)
+    else:
+        st.caption("준비된 점검 이미지: 0장")
 
     start = st.button("🚀 형상 점검 시작", type="primary", use_container_width=True)
 
