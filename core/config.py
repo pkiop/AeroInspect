@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import os
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
@@ -95,3 +96,64 @@ def resolve_models() -> dict[str, str]:
         "grounding": _pick(grounding, VISION_FALLBACK_MODEL, "Grounding"),
         "report": _pick(report, VISION_FALLBACK_MODEL, "Report"),
     }
+
+
+# ---------------------------------------------------------------------------
+# 부품 레지스트리 / 체크리스트
+# ---------------------------------------------------------------------------
+# 카탈로그(data/parts_catalog/*.md)의 부품명·P/N과 **동일 문자열**로 유지한다.
+# tests/test_e2e.py 가 카탈로그 ↔ 레지스트리 일치를 검증한다.
+
+
+@dataclass(frozen=True)
+class PartSpec:
+    """가상 부품 카탈로그 등재 항목의 정규 레코드."""
+
+    part_number: str
+    name_ko: str
+    name_en: str
+    side: str  # "left" | "right" | "center"
+    flight_critical: bool
+    category: str  # 카탈로그 파일 구분용
+
+
+PARTS_REGISTRY: tuple[PartSpec, ...] = (
+    # --- 미부 (수직/수평꼬리날개) ---
+    PartSpec("ACFT-VTS-R-001", "우측 수직꼬리날개", "Right Vertical Stabilizer", "right", True, "tail"),
+    PartSpec("ACFT-VTS-L-001", "좌측 수직꼬리날개", "Left Vertical Stabilizer", "left", True, "tail"),
+    PartSpec("ACFT-HTS-R-001", "우측 수평꼬리날개", "Right Horizontal Stabilizer", "right", True, "tail"),
+    PartSpec("ACFT-HTS-L-001", "좌측 수평꼬리날개", "Left Horizontal Stabilizer", "left", True, "tail"),
+    # --- 주익 / 파일런 / 장착물 ---
+    PartSpec("ACFT-WNG-R-001", "우측 주익", "Right Main Wing", "right", True, "wing"),
+    PartSpec("ACFT-WNG-L-001", "좌측 주익", "Left Main Wing", "left", True, "wing"),
+    PartSpec("ACFT-PYL-R-001", "우측 익하 파일런", "Right Underwing Pylon", "right", False, "wing"),
+    PartSpec("ACFT-PYL-L-001", "좌측 익하 파일런", "Left Underwing Pylon", "left", False, "wing"),
+    PartSpec("ACFT-MSL-R-001", "우측 훈련용 미사일", "Right Training Missile", "right", False, "wing"),
+    PartSpec("ACFT-MSL-L-001", "좌측 훈련용 미사일", "Left Training Missile", "left", False, "wing"),
+    # --- 랜딩기어 ---
+    PartSpec("ACFT-NLG-C-001", "전방 랜딩기어", "Nose Landing Gear", "center", True, "gear"),
+    PartSpec("ACFT-MLG-R-001", "우측 주 랜딩기어", "Right Main Landing Gear", "right", True, "gear"),
+    PartSpec("ACFT-MLG-L-001", "좌측 주 랜딩기어", "Left Main Landing Gear", "left", True, "gear"),
+    PartSpec("ACFT-NGD-C-001", "전방 랜딩기어 도어", "Nose Gear Door", "center", False, "gear"),
+    # --- 동체 / 캐노피 ---
+    PartSpec("ACFT-CNP-C-001", "캐노피", "Canopy", "center", True, "fuselage"),
+    PartSpec("ACFT-APN-C-001", "후방 동체 점검 패널", "Aft Fuselage Access Panel", "center", False, "fuselage"),
+    PartSpec("ACFT-EFT-C-001", "동체 중앙 외부 연료탱크", "Centerline External Fuel Tank", "center", False, "fuselage"),
+    PartSpec("ACFT-RDM-C-001", "노즈콘(레이돔)", "Nose Cone (Radome)", "center", True, "fuselage"),
+    # --- 센서 / 프로브 ---
+    PartSpec("ACFT-PIT-C-001", "피토 프로브", "Pitot Probe", "center", True, "sensor"),
+    PartSpec("ACFT-AOA-R-001", "우측 받음각 센서", "Right AOA Vane", "right", True, "sensor"),
+    PartSpec("ACFT-AOA-L-001", "좌측 받음각 센서", "Left AOA Vane", "left", True, "sensor"),
+    PartSpec("ACFT-ANT-C-001", "VHF 블레이드 안테나", "VHF Blade Antenna", "center", False, "sensor"),
+)
+
+#: VisionAgent 프롬프트에 제공하는 부품 체크리스트 (카탈로그 명칭과 동일 문자열)
+PART_CHECKLIST: tuple[str, ...] = tuple(p.name_ko for p in PARTS_REGISTRY)
+
+
+def find_part_by_name(name_ko: str) -> PartSpec | None:
+    """한국어 부품명으로 레지스트리에서 정규 레코드를 찾는다."""
+    for part in PARTS_REGISTRY:
+        if part.name_ko == name_ko:
+            return part
+    return None
