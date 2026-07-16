@@ -11,3 +11,5 @@ logs/*
 !reports/.gitkeep
 !runs/.gitkeep
 !logs/.gitkeep
+.env
+AGENTS.md
