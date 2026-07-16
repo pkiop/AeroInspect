@@ -396,7 +396,12 @@ class ReportAgent:
 
         out_dir = output_dir or config.REPORTS_DIR
         out_dir.mkdir(parents=True, exist_ok=True)
+        # 같은 분(minute) 내 재실행 시 기존 보고서를 덮어쓰지 않도록 접미사 부여
         report_path = out_dir / f"inspection_{now:%Y%m%d_%H%M}.docx"
+        suffix = 2
+        while report_path.exists():
+            report_path = out_dir / f"inspection_{now:%Y%m%d_%H%M}_{suffix}.docx"
+            suffix += 1
         doc.save(str(report_path))
         logger.info("보고서 생성 완료: %s", report_path)
         return report_path, narrative
